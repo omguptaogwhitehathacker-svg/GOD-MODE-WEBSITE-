@@ -19,7 +19,7 @@ Stocks – enter a stock symbol (e.g., AAPL, TSLA, RELIANCE.NS) and get real‑t
 
 AI Analysis – local rule‑based analysis for stocks (bullish/bearish, RSI, volatility), GitHub repos (activity score), Wikipedia articles (summary, keywords), dev boards, and vehicles.
 
-Project Forge – generates random project ideas by mixing hardware, software, and topics.
+Project Forge – generates random-project ideas by mixing hardware, software, and topics.
 
 Support – a mailto link to reach me if something breaks.
 
