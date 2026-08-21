@@ -1,7 +1,3 @@
-/* ==================== GLOBAL STATE ====================
-   We keep an in-memory cache so we don't hammer the APIs.
-   Nothing is stored on disk, just in the browser for 5 minutes.
-*/
 const app = document.getElementById('app');
 const cache = new Map();
 
@@ -19,10 +15,6 @@ function cacheGet(key) {
 function cacheSet(key, value) {
   cache.set(key, { value, timestamp: Date.now() });
 }
-
-/* ==================== PROVIDERS ====================
-   These functions talk to different APIs and return normalized objects.
-*/
 
 // ------- Wikipedia search -------
 async function searchWikipedia(query) {
@@ -462,7 +454,7 @@ async function getStockData(symbol) {
   throw new Error('Failed to fetch stock data. Please check symbol or try again later.');
 }
 
-/* ==================== AI ANALYSIS HELPERS ==================== */
+/* ==================== AI ANALYSIS ==================== */
 function calculateRSI(stockData) {
   const closes = stockData.historical ? stockData.historical.map(d => d.close) : stockData.chart.data;
   if (closes.length < 15) return 'Insufficient data';
@@ -729,14 +721,14 @@ async function performUnifiedSearch() {
   }
 
   if (githubResults.status === 'fulfilled' && githubResults.value.length) {
-    html += '<h3>🐙 GitHub Repositories</h3><div class="card-grid">';
+    html += '<h3> GitHub Repositories</h3><div class="card-grid">';
     githubResults.value.slice(0, 10).forEach(repo => {
       html += `
         <div class="card" onclick="location.hash='#/github/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}'">
           <div class="card-body">
             <div class="card-title">${repo.full_name}</div>
             <div class="card-description">${repo.description || ''}</div>
-            <div class="repo-stats">⭐ ${repo.stars}</div>
+            <div class="repo-stats"> ${repo.stars}</div>
           </div>
         </div>`;
     });
@@ -744,7 +736,7 @@ async function performUnifiedSearch() {
   }
 
   if (boardResults.status === 'fulfilled' && boardResults.value.length) {
-    html += '<h3>🧠 Dev Boards</h3><div class="card-grid">';
+    html += '<h3> Dev Boards</h3><div class="card-grid">';
     boardResults.value.slice(0, 10).forEach(board => {
       html += `
         <div class="card" onclick="location.hash='#/devboards/${encodeURIComponent(board.id)}'">
@@ -823,7 +815,7 @@ async function renderDevBoards(params) {
   }
 
   app.innerHTML = `
-    <h2>🧠 Dev Boards</h2>
+    <h2>Dev Boards</h2>
     <p class="section-ref">Source: Wikidata SPARQL (single‑board computers & microcontrollers)</p>
     <p>Search hardware development boards. Partial names and aliases are supported.</p>
     <div class="search-bar">
@@ -910,7 +902,7 @@ function renderGitHub(params) {
     return;
   }
   app.innerHTML = `
-    <h2>🐙 GitHub Repos</h2>
+    <h2> GitHub Repos</h2>
     <p class="section-ref">Source: GitHub REST API (public repositories)</p>
     <p>Search public repositories. Enter keywords or partial names.</p>
     <div class="search-bar">
@@ -958,7 +950,7 @@ function displayGitHubRepos(repos, container) {
       <div class="card-body">
         <div class="card-title"><img src="${repo.avatar_url}" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:8px;">${repo.full_name}</div>
         <div class="card-description">${repo.description || ''}</div>
-        <div class="repo-stats">⭐ ${repo.stars}  🍴 ${repo.forks}  ${repo.language ? '🔤 '+repo.language : ''}</div>
+        <div class="repo-stats"> ${repo.stars}  🍴 ${repo.forks}  ${repo.language ? '🔤 '+repo.language : ''}</div>
       </div>
     `;
     card.addEventListener('click', () => {
@@ -1065,7 +1057,7 @@ async function renderHackClub(params) {
 
 function showHackClub(repos, scrapbook) {
   app.innerHTML = `
-    <h2>🚀 Hack Club</h2>
+    <h2> Hack Club</h2>
     <p class="section-ref">Source: Hack Club GitHub org & Scrapbook API</p>
     <p>Open‑source organization and community.</p>
     ${scrapbook ? `<div class="notice">Scrapbook data available (${Array.isArray(scrapbook) ? scrapbook.length + ' entries' : 'non‑list'})</div>` : '<div class="notice">Scrapbook data unavailable.</div>'}
@@ -1080,7 +1072,7 @@ function showHackClub(repos, scrapbook) {
       <div class="card-body">
         <div class="card-title">${repo.full_name}</div>
         <div class="card-description">${repo.description || ''}</div>
-        <div class="repo-stats">⭐ ${repo.stars}  🍴 ${repo.forks}  ${repo.language ? '🔤 '+repo.language : ''}</div>
+        <div class="repo-stats"> ${repo.stars}  🍴 ${repo.forks}  ${repo.language ? '🔤 '+repo.language : ''}</div>
       </div>
     `;
     card.addEventListener('click', () => {
@@ -1193,7 +1185,7 @@ function showVehicleDetail(vehicle) {
 /* ==================== STOCKS SECTION ==================== */
 function renderStocks(params) {
   app.innerHTML = `
-    <h2>📈 Stocks</h2>
+    <h2> Stocks</h2>
     <p class="section-ref">Source: Stooq / Yahoo Finance (via CORS proxy)</p>
     <p>Enter a stock symbol (e.g., AAPL, TSLA, RELIANCE.NS).</p>
     <div class="search-bar">
@@ -1264,7 +1256,7 @@ function displayStock(data, container) {
 /* ==================== AI ANALYSIS SECTION ==================== */
 function renderAI() {
   app.innerHTML = `
-    <h2>🤖 AI Analysis</h2>
+    <h2> AI Analysis</h2>
     <p class="section-ref">Local rule‑based analysis (no external AI API required)</p>
     <p>Enter a stock symbol, GitHub repo (owner/repo), or any keyword for Wikipedia, Dev Boards, or Vehicles. Partial names work.</p>
     <div class="search-bar">
@@ -1295,7 +1287,7 @@ async function runAI() {
 /* ==================== PROJECT FORGE SECTION ==================== */
 async function renderProjectForge() {
   app.innerHTML = `
-    <h2>🛠️ Project Forge</h2>
+    <h2> Project Forge</h2>
     <p class="section-ref">Combines data from all sources</p>
     <p>Generate brand‑new project ideas by mixing hardware, software, and trending topics.</p>
     <button id="forge-btn" class="search-bar button">Generate Project Ideas</button>
@@ -1325,7 +1317,7 @@ async function generateForge() {
 /* ==================== SUPPORT SECTION ==================== */
 function renderSupport() {
   app.innerHTML = `
-    <h2>📧 Support</h2>
+    <h2> Support</h2>
     <p>Need help? Have questions or feedback? Reach out directly to the developer.</p>
     <div class="detail-panel">
       <p><strong>Email:</strong> <a href="mailto:omguptaogwhitehathacker@gmil.com" style="color:#e63946;">omguptaogwhitehathacker@gmil.com</a></p>

@@ -1,8 +1,5 @@
 /*
   style.css – look and feel of Website God Mode.
-  Theme: red, orange, white. Background: your own image (sharp, no blur).
-  Glassmorphism is subtle (5px blur) to keep things readable.
-*/
 
 :root {
   --bg-top: #ffe5e5;          /* soft red */
@@ -24,7 +21,7 @@
 }
 
 body {
-  /* Replace the URL below with your own background image */
+  
   background-image: url("./cherry.jfif");
   background-size: cover;
   background-position: center;
@@ -38,7 +35,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Optional overlay to ensure readability if your image is busy */
+
 body::before {
   content: "";
   position: fixed;
