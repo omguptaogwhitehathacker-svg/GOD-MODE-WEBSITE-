@@ -454,7 +454,7 @@ async function getStockData(symbol) {
   throw new Error('Failed to fetch stock data. Please check symbol or try again later.');
 }
 
-/* ==================== AI ANALYSIS ==================== */
+/* ==================== MARKET ANALYSIS ==================== */
 function calculateRSI(stockData) {
   const closes = stockData.historical ? stockData.historical.map(d => d.close) : stockData.chart.data;
   if (closes.length < 15) return 'Insufficient data';
@@ -485,11 +485,11 @@ function getRecentMovement(stockData) {
     const avg = last5.reduce((sum, val) => sum + val, 0) / last5.length;
     const latest = closes[closes.length - 1];
     const changePct = ((latest - avg) / avg) * 100;
-    if (changePct > 0.3) return { label: 'Bullish', emoji: '📈' };
-    else if (changePct < -0.3) return { label: 'Bearish', emoji: '📉' };
-    else return { label: 'Sideways', emoji: '➡️' };
+    if (changePct > 0.3) return { label: 'Bullish' };
+    else if (changePct < -0.3) return { label: 'Bearish' };
+    else return { label: 'Sideways' };
   }
-  return { label: 'Not enough data', emoji: '❓' };
+  return { label: 'Not enough data' };
 }
 
 function calculateRepoActivity(repo) {
@@ -500,9 +500,9 @@ function calculateRepoActivity(repo) {
 
 function repoActivityVerdict(repo) {
   const activity = calculateRepoActivity(repo);
-  if (activity > 1000) return '🔥 Very active and popular';
-  if (activity > 100) return '✅ Active';
-  return '⚠️ Low activity';
+  if (activity > 1000) return 'Very active and popular';
+  if (activity > 100) return 'Active';
+  return 'Low activity';
 }
 
 function extractKeywords(text) {
@@ -515,7 +515,7 @@ function extractKeywords(text) {
   return Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 5).map(e => e[0]);
 }
 
-/* ==================== AI ANALYSIS MAIN FUNCTION ==================== */
+/* ==================== ANALYSIS MAIN FUNCTION ==================== */
 async function analyzeItem(input) {
   // If it looks like owner/repo
   if (input.includes('/')) {
@@ -546,10 +546,10 @@ async function analyzeItem(input) {
         <h3>Stock Analysis: ${data.symbol}</h3>
         <p><strong>Price:</strong> $${data.price.toFixed(2)}</p>
         <p><strong>Change:</strong> ${data.change.toFixed(2)} (${data.changePercent.toFixed(2)}%)</p>
-        <p><strong>Recent Movement:</strong> ${movement.emoji} ${movement.label}</p>
+        <p><strong>Recent Movement:</strong> ${movement.label}</p>
         <p><strong>RSI (14):</strong> ${calculateRSI(data)}</p>
         <p><strong>Volatility:</strong> ${calculateVolatility(data)}</p>
-        <p><strong>Recommendation:</strong> ${movement.label === 'Bullish' ? '📈 Upward momentum' : movement.label === 'Bearish' ? '📉 Downward momentum' : '➡️ Neutral'}</p>
+        <p><strong>Recommendation:</strong> ${movement.label === 'Bullish' ? 'Upward momentum' : movement.label === 'Bearish' ? 'Downward momentum' : 'Neutral'}</p>
       `;
     } catch (e) {}
   }
@@ -664,7 +664,7 @@ function router() {
     case 'hackclub': renderHackClub(params); break;
     case 'vehicles': renderVehicles(params); break;
     case 'stocks': renderStocks(params); break;
-    case 'ai': renderAI(); break;
+    case 'analysis': renderAnalysis(); break;
     case 'forge': renderProjectForge(); break;
     case 'support': renderSupport(); break;
     case 'wiki': if (params.length === 1) renderWikipediaDetail(params[0]); else renderHome(); break;
@@ -675,7 +675,7 @@ function router() {
 /* ==================== HOME (God Search) ==================== */
 function renderHome() {
   app.innerHTML = `
-    <h2>🔍 God Search</h2>
+    <h2>God Search</h2>
     <p>Welcome to <strong>Website God Mode</strong> – your all‑in‑one gateway to the world’s knowledge, hardware, and markets. This single‑page application fetches live data from multiple public sources on demand, without storing any information on a server.</p>
     <div class="section-ref">About this project: Website God Mode is a client‑side aggregator that connects to Wikipedia, GitHub, Hack Club, Wikidata, and financial APIs to bring you instant results across encyclopedic articles, development boards, vehicles, repositories, and stocks. Built with pure HTML, CSS, and JavaScript, it requires no backend and leaves no data trail. Use the navigation bar to explore specialized sections, or search across all sources simultaneously below.</div>
     <div class="search-bar">
@@ -706,7 +706,7 @@ async function performUnifiedSearch() {
   let html = '';
 
   if (wikiResults.status === 'fulfilled' && wikiResults.value.length) {
-    html += '<h3>📚 Wikipedia</h3><div class="card-grid">';
+    html += '<h3>Wikipedia</h3><div class="card-grid">';
     wikiResults.value.slice(0, 10).forEach(item => {
       html += `
         <div class="card" onclick="location.hash='#/wiki/${encodeURIComponent(item.title)}'">
@@ -721,7 +721,7 @@ async function performUnifiedSearch() {
   }
 
   if (githubResults.status === 'fulfilled' && githubResults.value.length) {
-    html += '<h3> GitHub Repositories</h3><div class="card-grid">';
+    html += '<h3>GitHub Repositories</h3><div class="card-grid">';
     githubResults.value.slice(0, 10).forEach(repo => {
       html += `
         <div class="card" onclick="location.hash='#/github/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}'">
@@ -736,7 +736,7 @@ async function performUnifiedSearch() {
   }
 
   if (boardResults.status === 'fulfilled' && boardResults.value.length) {
-    html += '<h3> Dev Boards</h3><div class="card-grid">';
+    html += '<h3>Dev Boards</h3><div class="card-grid">';
     boardResults.value.slice(0, 10).forEach(board => {
       html += `
         <div class="card" onclick="location.hash='#/devboards/${encodeURIComponent(board.id)}'">
@@ -751,7 +751,7 @@ async function performUnifiedSearch() {
   }
 
   if (vehicleResults.status === 'fulfilled' && vehicleResults.value.length) {
-    html += '<h3>🏎️ Vehicles</h3><div class="card-grid">';
+    html += '<h3>Vehicles</h3><div class="card-grid">';
     vehicleResults.value.slice(0, 10).forEach(v => {
       html += `
         <div class="card" onclick="location.hash='#/vehicles/${encodeURIComponent(v.id)}'">
@@ -781,12 +781,12 @@ async function renderWikipediaDetail(title) {
       cacheSet(`wiki_${title}`, details);
     }
     app.innerHTML = `
-      <button class="back-btn" onclick="history.back()">← Back</button>
+      <button class="back-btn" onclick="history.back()">Back</button>
       <div class="detail-panel">
         <h2>${details.title}</h2>
         ${details.image ? `<img src="${details.image}" referrerpolicy="no-referrer">` : ''}
         <p>${details.extract || ''}</p>
-        <p><a href="${details.url}" target="_blank" rel="noopener">Read full article on Wikipedia ↗</a></p>
+        <p><a href="${details.url}" target="_blank" rel="noopener">Read full article on Wikipedia</a></p>
       </div>
     `;
   } catch (err) {
@@ -876,7 +876,7 @@ function displayBoardResults(boards, container) {
 
 function showBoardDetail(board) {
   app.innerHTML = `
-    <button class="back-btn" onclick="history.back()">← Back</button>
+    <button class="back-btn" onclick="history.back()">Back</button>
     <div class="detail-panel">
       <h2>${board.label}</h2>
       ${board.image ? `<img src="${board.image}" referrerpolicy="no-referrer">` : ''}
@@ -887,7 +887,7 @@ function showBoardDetail(board) {
           ${board.specs.map(spec => `<tr><td><strong>${spec.label}</strong></td><td>${spec.value}</td></tr>`).join('')}
         </tbody>
       </table>
-      <p><a href="${board.url}" target="_blank" rel="noopener">View on Wikidata →</a></p>
+      <p><a href="${board.url}" target="_blank" rel="noopener">View on Wikidata</a></p>
     </div>
   `;
 }
@@ -902,7 +902,7 @@ function renderGitHub(params) {
     return;
   }
   app.innerHTML = `
-    <h2> GitHub Repos</h2>
+    <h2>GitHub Repos</h2>
     <p class="section-ref">Source: GitHub REST API (public repositories)</p>
     <p>Search public repositories. Enter keywords or partial names.</p>
     <div class="search-bar">
@@ -950,7 +950,7 @@ function displayGitHubRepos(repos, container) {
       <div class="card-body">
         <div class="card-title"><img src="${repo.avatar_url}" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:8px;">${repo.full_name}</div>
         <div class="card-description">${repo.description || ''}</div>
-        <div class="repo-stats"> ${repo.stars}  🍴 ${repo.forks}  ${repo.language ? '🔤 '+repo.language : ''}</div>
+        <div class="repo-stats">Stars ${repo.stars}  Forks ${repo.forks}  ${repo.language ? repo.language : ''}</div>
       </div>
     `;
     card.addEventListener('click', () => {
@@ -980,7 +980,7 @@ async function loadGitHubRepoDetails(owner, repoName) {
 
 function showGitHubRepoDetail(repo, readme, starDates) {
   app.innerHTML = `
-    <button class="back-btn" onclick="history.back()">← Back</button>
+    <button class="back-btn" onclick="history.back()">Back</button>
     <div class="detail-panel">
       <h2><img src="${repo.avatar_url}" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:10px;">${repo.full_name}</h2>
       <p>${repo.description || ''}</p>
@@ -993,7 +993,7 @@ function showGitHubRepoDetail(repo, readme, starDates) {
         <tr><td><strong>Created</strong></td><td>${new Date(repo.created_at).toLocaleDateString()}</td></tr>
         <tr><td><strong>Last Updated</strong></td><td>${new Date(repo.updated_at).toLocaleDateString()}</td></tr>
       </table>
-      <p><a href="${repo.html_url}" target="_blank" rel="noopener">View on GitHub ↗</a></p>
+      <p><a href="${repo.html_url}" target="_blank" rel="noopener">View on GitHub</a></p>
       ${starDates.length > 0 ? `<canvas id="star-chart" style="width:100%;height:300px;margin-top:20px;"></canvas>` : '<p>Star history not available.</p>'}
       ${readme ? `<h3>README (first 500 chars)</h3><pre style="white-space:pre-wrap;word-break:break-word;background:rgba(255,255,255,0.3);padding:1rem;border-radius:8px;">${readme.slice(0, 500)}...</pre>` : ''}
     </div>
@@ -1057,7 +1057,7 @@ async function renderHackClub(params) {
 
 function showHackClub(repos, scrapbook) {
   app.innerHTML = `
-    <h2> Hack Club</h2>
+    <h2>Hack Club</h2>
     <p class="section-ref">Source: Hack Club GitHub org & Scrapbook API</p>
     <p>Open‑source organization and community.</p>
     ${scrapbook ? `<div class="notice">Scrapbook data available (${Array.isArray(scrapbook) ? scrapbook.length + ' entries' : 'non‑list'})</div>` : '<div class="notice">Scrapbook data unavailable.</div>'}
@@ -1072,7 +1072,7 @@ function showHackClub(repos, scrapbook) {
       <div class="card-body">
         <div class="card-title">${repo.full_name}</div>
         <div class="card-description">${repo.description || ''}</div>
-        <div class="repo-stats"> ${repo.stars}  🍴 ${repo.forks}  ${repo.language ? '🔤 '+repo.language : ''}</div>
+        <div class="repo-stats">Stars ${repo.stars}  Forks ${repo.forks}  ${repo.language ? repo.language : ''}</div>
       </div>
     `;
     card.addEventListener('click', () => {
@@ -1106,7 +1106,7 @@ async function renderVehicles(params) {
   }
 
   app.innerHTML = `
-    <h2>🏎️ Vehicles</h2>
+    <h2>Vehicles</h2>
     <p class="section-ref">Source: Wikidata SPARQL (car & motorcycle models)</p>
     <p>Search vehicles by partial name or alias. E.g., "civic", "tesla", "ninja".</p>
     <div class="search-bar">
@@ -1166,7 +1166,7 @@ function displayVehicleResults(vehicles, container) {
 
 function showVehicleDetail(vehicle) {
   app.innerHTML = `
-    <button class="back-btn" onclick="history.back()">← Back</button>
+    <button class="back-btn" onclick="history.back()">Back</button>
     <div class="detail-panel">
       <h2>${vehicle.label}</h2>
       ${vehicle.image ? `<img src="${vehicle.image}" referrerpolicy="no-referrer">` : ''}
@@ -1177,7 +1177,7 @@ function showVehicleDetail(vehicle) {
           ${vehicle.specs.map(spec => `<tr><td><strong>${spec.label}</strong></td><td>${spec.value}</td></tr>`).join('')}
         </tbody>
       </table>
-      <p><a href="${vehicle.url}" target="_blank" rel="noopener">View on Wikidata →</a></p>
+      <p><a href="${vehicle.url}" target="_blank" rel="noopener">View on Wikidata</a></p>
     </div>
   `;
 }
@@ -1185,7 +1185,7 @@ function showVehicleDetail(vehicle) {
 /* ==================== STOCKS SECTION ==================== */
 function renderStocks(params) {
   app.innerHTML = `
-    <h2> Stocks</h2>
+    <h2>Stocks</h2>
     <p class="section-ref">Source: Stooq / Yahoo Finance (via CORS proxy)</p>
     <p>Enter a stock symbol (e.g., AAPL, TSLA, RELIANCE.NS).</p>
     <div class="search-bar">
@@ -1254,31 +1254,31 @@ function displayStock(data, container) {
 }
 
 /* ==================== AI ANALYSIS SECTION ==================== */
-function renderAI() {
+function renderAnalysis() {
   app.innerHTML = `
-    <h2> AI Analysis</h2>
+    <h2>Analysis</h2>
     <p class="section-ref">Local rule‑based analysis (no external AI API required)</p>
     <p>Enter a stock symbol, GitHub repo (owner/repo), or any keyword for Wikipedia, Dev Boards, or Vehicles. Partial names work.</p>
     <div class="search-bar">
-      <input type="text" id="ai-input" placeholder="e.g., AAPL, microsoft/vscode, rasp, civic" />
-      <button id="ai-analyze-btn">Analyze</button>
+      <input type="text" id="analysis-input" placeholder="e.g., AAPL, microsoft/vscode, rasp, civic" />
+      <button id="analysis-btn">Analyze</button>
     </div>
-    <div id="ai-results"></div>
+    <div id="analysis-results"></div>
   `;
-  document.getElementById('ai-analyze-btn').addEventListener('click', runAI);
-  document.getElementById('ai-input').addEventListener('keypress', e => {
-    if (e.key === 'Enter') runAI();
+  document.getElementById('analysis-btn').addEventListener('click', runAnalysis);
+  document.getElementById('analysis-input').addEventListener('keypress', e => {
+    if (e.key === 'Enter') runAnalysis();
   });
 }
 
-async function runAI() {
-  const input = document.getElementById('ai-input').value.trim();
+async function runAnalysis() {
+  const input = document.getElementById('analysis-input').value.trim();
   if (!input) return;
-  const resultsContainer = document.getElementById('ai-results');
-  resultsContainer.innerHTML = '<div class="loading">Running AI analysis...</div>';
+  const resultsContainer = document.getElementById('analysis-results');
+  resultsContainer.innerHTML = '<div class="loading">Running analysis...</div>';
   try {
     const result = await analyzeItem(input);
-    resultsContainer.innerHTML = `<div class="ai-result">${result}</div>`;
+    resultsContainer.innerHTML = `<div class="analysis-result">${result}</div>`;
   } catch (err) {
     resultsContainer.innerHTML = `<div class="error">${err.message}</div>`;
   }
@@ -1287,7 +1287,7 @@ async function runAI() {
 /* ==================== PROJECT FORGE SECTION ==================== */
 async function renderProjectForge() {
   app.innerHTML = `
-    <h2> Project Forge</h2>
+    <h2>Project Forge</h2>
     <p class="section-ref">Combines data from all sources</p>
     <p>Generate brand‑new project ideas by mixing hardware, software, and trending topics.</p>
     <button id="forge-btn" class="search-bar button">Generate Project Ideas</button>
@@ -1329,12 +1329,12 @@ function renderSupport() {
 /* Generic detail panel for Wikipedia-based sections */
 function showDetailPanel(details) {
   app.innerHTML = `
-    <button class="back-btn" onclick="history.back()">← Back</button>
+    <button class="back-btn" onclick="history.back()">Back</button>
     <div class="detail-panel">
       <h2>${details.title}</h2>
       ${details.image ? `<img src="${details.image}" referrerpolicy="no-referrer">` : ''}
       <p>${details.extract || ''}</p>
-      <p><a href="${details.url}" target="_blank" rel="noopener">Read full article on Wikipedia ↗</a></p>
+      <p><a href="${details.url}" target="_blank" rel="noopener">Read full article on Wikipedia</a></p>
     </div>
   `;
 }
