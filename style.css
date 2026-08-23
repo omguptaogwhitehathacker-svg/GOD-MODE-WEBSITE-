@@ -926,3 +926,264 @@ h1 {
     box-shadow: 5px 0 0 #000;
   }
 }
+
+:root {
+  --paper: #ffffff;
+  --paper-deep: #ffff00;
+  --ink: #000000;
+  --muted: #000000;
+  --red: #ff0000;
+  --red-dark: #ff0000;
+  --line: #000000;
+  --card: #ffffff;
+  --shadow: transparent;
+}
+
+body {
+  background: white;
+  color: black;
+  font-family: "Comic Sans MS", cursive;
+}
+
+.side-rail {
+  width: 180px;
+  padding: 8px;
+  background: yellow;
+  border-right: 2px solid black;
+}
+
+.main-stage {
+  width: calc(100% - 180px);
+  margin-left: 180px;
+}
+
+.wordmark-main {
+  font-size: 1.4rem;
+}
+
+.wordmark-sub {
+  font-size: 0.55rem;
+}
+
+.rail-rule {
+  height: 2px;
+  margin: 10px 0;
+}
+
+.rail-nav {
+  gap: 1px;
+}
+
+.rail-link {
+  padding: 5px 2px;
+  color: blue;
+  font-size: 0.8rem;
+}
+
+.rail-link:hover,
+.rail-link.active {
+  background: white;
+  border: 2px solid red;
+}
+
+.topline {
+  min-height: 45px;
+  padding: 5px 10px;
+  border-bottom: 2px solid black;
+}
+
+.top-actions {
+  gap: 5px;
+  font-size: 0.55rem;
+}
+
+.content-wrap {
+  max-width: 850px;
+  padding: 15px 10px 25px;
+}
+
+.home-hero {
+  min-height: 360px;
+  padding: 15px 10px 10px;
+  background: #ff99cc !important;
+  border: 2px solid black;
+}
+
+.home-hero:after {
+  right: 5%;
+  bottom: -60px;
+  width: 120px;
+  height: 120px;
+  background: lime;
+  border: 2px solid blue;
+  transform: rotate(5deg);
+}
+
+h1,
+h2,
+h3,
+.chart-head h3,
+.forge-prompt h3,
+.state-box h3,
+.market-price,
+.board-mark {
+  font-family: "Comic Sans MS", cursive;
+  letter-spacing: 0;
+}
+
+h1 {
+  margin: 10px 0 14px;
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.lede {
+  line-height: 1.2;
+}
+
+.button-primary,
+.search-submit {
+  border: 2px solid black;
+  padding: 8px;
+  background: red;
+  color: white;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.hero-index {
+  padding: 7px;
+  background: white;
+  border: 2px solid black;
+  font-family: "Comic Sans MS", cursive;
+}
+
+.page-heading {
+  display: block;
+  margin: 20px 0 12px;
+}
+
+.page-heading h2 {
+  margin: 4px 0 8px;
+  font-size: 3rem;
+}
+
+.heading-meta {
+  max-width: none;
+  line-height: 1.2;
+}
+
+.search-strip {
+  display: block;
+  margin-bottom: 15px;
+}
+
+.search-input-wrap {
+  height: 38px;
+  border: 2px solid black;
+}
+
+.search-input {
+  padding: 7px;
+}
+
+.search-submit {
+  width: auto;
+  height: 36px;
+  margin-top: 4px;
+  border-left: 2px solid black;
+  background: blue;
+}
+
+.result-grid,
+.board-grid,
+.repo-grid,
+.market-grid,
+.support-grid,
+.forge-layout {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.result-card,
+.board-card,
+.repo-card,
+.support-card,
+.market-card,
+.idea-card,
+.chart-block,
+.forge-prompt,
+.state-box {
+  padding: 9px;
+  border: 2px solid black;
+  box-shadow: none;
+}
+
+.result-card:hover,
+.board-card:hover,
+.repo-card:hover,
+.support-card:hover,
+.market-card:hover {
+  box-shadow: none;
+}
+
+.result-card h3,
+.board-card h3,
+.repo-card h3,
+.support-card h3,
+.idea-card h3 {
+  font-size: 1.3rem;
+  margin: 10px 0 5px;
+}
+
+.result-card p,
+.board-card p,
+.repo-card p,
+.support-card p,
+.idea-card p {
+  line-height: 1.2;
+}
+
+.board-card {
+  gap: 8px;
+}
+
+.board-mark {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+  background: lime;
+  border: 2px solid black;
+}
+
+.tag,
+.filter-chip {
+  padding: 3px;
+  border: 2px solid black;
+  background: yellow;
+}
+
+.chart-svg {
+  height: 100px;
+  margin-top: 8px;
+}
+
+.forge-prompt {
+  background: #00ffff;
+}
+
+.footer-note {
+  padding: 8px 10px;
+  border-top: 2px solid black;
+}
+
+@media (max-width: 850px) {
+  .side-rail {
+    width: 180px;
+  }
+
+  .main-stage {
+    width: 100%;
+    margin-left: 0;
+  }
+}
