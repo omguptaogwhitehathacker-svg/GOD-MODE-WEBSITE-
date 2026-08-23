@@ -1,1344 +1,341 @@
-const app = document.getElementById('app');
-const cache = new Map();
+const artwork = "cherry-blossom.jfif";
 
-function cacheGet(key) {
-  const item = cache.get(key);
-  if (!item) return null;
-  const now = Date.now();
-  if (now - item.timestamp > 5 * 60 * 1000) {
-    cache.delete(key);
-    return null;
-  }
-  return item.value;
+const data = {
+  search: [
+    [
+      "Knowledge",
+      "Cognitive science",
+      "How minds make models, decisions, and mistakes — a useful place to start.",
+      "WIKIPEDIA · 12 MIN READ",
+    ],
+    [
+      "Knowledge",
+      "Signal processing",
+      "A field guide to turning noisy measurements into something you can act on.",
+      "WIKIPEDIA · 18 MIN READ",
+    ],
+    [
+      "GitHub",
+      "tinygrad / tinygrad",
+      "A small, readable neural network framework for understanding the machinery underneath.",
+      "GITHUB · 25.4K STARS",
+    ],
+    [
+      "Hardware",
+      "ESP32-S3",
+      "A low-cost Wi-Fi and Bluetooth microcontroller with room for experiments.",
+      "BOARD · DUAL-CORE",
+    ],
+    [
+      "Vehicles",
+      "DeLorean DMC-12",
+      "A stainless steel wedge, a design artifact, and a surprisingly rich engineering story.",
+      "VEHICLE · 1981—1983",
+    ],
+  ],
+  boards: [
+    [
+      "S3",
+      "ESP32-S3",
+      "Wi-Fi, Bluetooth LE, and enough pins for a weekend of wonderfully bad ideas.",
+      "MICROCONTROLLER · WIRELESS",
+    ],
+    [
+      "P",
+      "Raspberry Pi Pico 2",
+      "A tidy little RP2350 board for when the machine should feel close to the metal.",
+      "RP2350 · C / PYTHON",
+    ],
+    [
+      "01",
+      "Arduino Uno R4",
+      "A friendly front door into sensors, motors, and the satisfying click of a first prototype.",
+      "RENESAS · BEGINNER",
+    ],
+    [
+      "N",
+      "STM32 Nucleo",
+      "Serious embedded tooling without losing the joy of a blinking LED.",
+      "ARM CORTEX · DEBUGGER",
+    ],
+  ],
+  vehicles: [
+    [
+      "D",
+      "DeLorean DMC-12",
+      "A gull-winged stainless steel time capsule with a troubled production run.",
+      "V6 · 130 HP · 1981—1983",
+    ],
+    [
+      "L",
+      "Land Rover Defender",
+      "A box with a purpose. Utility, repairability, and a silhouette that refuses to age.",
+      "I4 · 296 HP · 2020—",
+    ],
+    [
+      "M",
+      "Mazda MX-5",
+      "The smallest possible argument for making a car lighter instead of faster.",
+      "I4 · 181 HP · 1989—",
+    ],
+    [
+      "C",
+      "Citroën DS",
+      "Hydropneumatic suspension, directional headlights, and a little French audacity.",
+      "I4 · 130 HP · 1955—1975",
+    ],
+  ],
+  repos: [
+    [
+      "tinygrad",
+      "tinygrad",
+      "You like PyTorch? You like micrograd? You like tinygrad.",
+      "Python",
+      "25.4k",
+    ],
+    [
+      "Swordfish90",
+      "cool-retro-term",
+      "A terminal emulator that looks like an old cathode ray tube display.",
+      "QML",
+      "9.8k",
+    ],
+    [
+      "raspberrypi",
+      "pico-sdk",
+      "SDK for the Raspberry Pi Pico RP2040-based microcontroller boards.",
+      "C",
+      "3.6k",
+    ],
+    [
+      "immich-app",
+      "immich",
+      "Self-hosted photo and video management solution.",
+      "TypeScript",
+      "62.1k",
+    ],
+  ],
+  stocks: [
+    ["AAPL", "Apple", "$193.89", "+1.42%"],
+    ["NVDA", "NVIDIA", "$875.28", "+2.16%"],
+    ["TSLA", "Tesla", "$177.48", "-0.84%"],
+    ["BTC", "Bitcoin", "$68,442", "+0.56%"],
+  ],
+};
+
+const app = document.querySelector("#app");
+const labels = {
+  home: "God Search",
+  boards: "Dev Boards",
+  github: "GitHub",
+  hackclub: "Hack Club",
+  vehicles: "Vehicles",
+  markets: "Markets",
+  forge: "Project Forge",
+  support: "Support",
+};
+let savedIdea = false;
+let ideaNumber = 0;
+
+function shell(title, body) {
+  document.querySelector("#pageLabel").textContent = title;
+  app.innerHTML = `<div class="content-wrap reveal">${body}</div>`;
+  document
+    .querySelectorAll(".rail-link")
+    .forEach((link) =>
+      link.classList.toggle(
+        "active",
+        link.dataset.route === location.hash.slice(1) ||
+          (location.hash === "" && link.dataset.route === "home"),
+      ),
+    );
+  document.querySelector("#sideRail").classList.remove("open");
 }
 
-function cacheSet(key, value) {
-  cache.set(key, { value, timestamp: Date.now() });
+function searchBar(label = "Search") {
+  return `<form class="search-strip" id="searchForm"><div class="search-input-wrap"><span>⌕</span><input class="search-input" id="searchInput" placeholder="Try a topic, a repo, a board…" aria-label="Search"></div><button class="search-submit">${label}</button></form>`;
 }
 
-// ------- Wikipedia search -------
-async function searchWikipedia(query) {
-  const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=20&prop=description|pageimages&piprop=thumbnail&pithumbsize=200&format=json&origin=*`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Wikipedia search failed');
-  const data = await response.json();
-  const pages = data.query?.pages || {};
-  const results = [];
-  for (const pageId in pages) {
-    const page = pages[pageId];
-    results.push({
-      title: page.title,
-      description: page.description || '',
-      snippet: page.description || '',
-      thumbnail: page.thumbnail?.source || null
-    });
-  }
-  return results;
-}
-
-// ------- Get full Wikipedia article summary -------
-async function getWikipediaDetails(title) {
-  const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Wikipedia article not found');
-  const data = await response.json();
-  return {
-    title: data.title,
-    extract: data.extract,
-    image: data.originalimage?.source || data.thumbnail?.source || null,
-    url: data.content_urls?.desktop?.page
+function home() {
+  shell(
+    "God Search",
+    `<section class="home-hero" style="background-image:url('${artwork}')"><div class="hero-copy"><div class="eyebrow">A quiet instrument for loud ideas</div><h1>Follow the<br><em>interesting</em> thing.</h1><p class="lede">God Mode is a personal command center for curious builders. Search the web’s knowledge, browse code, study machines, and leave with a project worth making.</p><button class="button-primary" id="beginSearch">Open the search desk <span>→</span></button></div><div class="hero-index"><strong>FIELD NOTE / 001</strong>Make the first move small enough to make now. The rest of the map appears after.</div></section><section id="searchDesk"><div class="page-heading"><div><div class="eyebrow">God Search</div><h2>One desk.<br>Several rabbit holes.</h2></div><p class="heading-meta">A forgiving search across local starting points. No accounts, no ceremony, no need to know exactly what you are looking for.</p></div>${searchBar()}<div id="results" class="result-grid"></div></section>`,
+  );
+  document.querySelector("#results").innerHTML =
+    '<div class="state-box"><h3>Start with a loose thread.</h3><p>Search across knowledge, hardware, code, and the occasional beautiful machine.</p></div>';
+  document.querySelector("#beginSearch").onclick = () => {
+    document
+      .querySelector("#searchDesk")
+      .scrollIntoView({ behavior: "smooth" });
+    document.querySelector("#searchInput").focus();
+  };
+  document.querySelector("#searchForm").onsubmit = (event) => {
+    event.preventDefault();
+    const query = document
+      .querySelector("#searchInput")
+      .value.toLowerCase()
+      .trim();
+    const found = data.search.filter((item) =>
+      item.join(" ").toLowerCase().includes(query),
+    );
+    document.querySelector("#results").innerHTML = found.length
+      ? found
+          .map(
+            (item, i) =>
+              `<article class="result-card reveal"><div class="result-top"><span>${item[0]}</span><span>0${i + 1}</span></div><h3>${item[1]}</h3><p>${item[2]}</p><div class="result-foot"><span>${item[3]}</span><span>↗</span></div></article>`,
+          )
+          .join("")
+      : '<div class="state-box"><h3>Nothing in the index yet.</h3><p>Try a broader phrase. The best rabbit holes rarely start with the perfect query.</p></div>';
   };
 }
 
-// ------- Commons image helper -------
-async function getCommonsImageUrl(commonsUrl) {
-  const fileName = commonsUrl.split('/').pop();
-  const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=File:${encodeURIComponent(fileName)}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
-  const response = await fetch(apiUrl);
-  const data = await response.json();
-  const pages = data.query.pages;
-  const page = Object.values(pages)[0];
-  if (page.imageinfo && page.imageinfo.length > 0) {
-    return page.imageinfo[0].thumburl || page.imageinfo[0].url;
-  }
-  return null;
-}
-
-// ------- Dev Boards using Wikidata SPARQL -------
-async function searchDevBoards(query = '') {
-  const sparql = `
-    SELECT ?item ?itemLabel ?itemDescription ?image WHERE {
-      VALUES ?type { wd:Q1190176 wd:Q6386235 wd:Q173783 wd:Q848370 }
-      ?item wdt:P31 ?type.
-      OPTIONAL { ?item wdt:P18 ?image. }
-      OPTIONAL { ?item skos:altLabel ?altLabel filter(lang(?altLabel) = "en") }
-      ${query ? `FILTER(CONTAINS(LCASE(?itemLabel), "${query.toLowerCase()}") || CONTAINS(LCASE(?altLabel), "${query.toLowerCase()}"))` : ''}
-      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-    }
-    LIMIT 50
-  `;
-  const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql);
-  const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-  if (!response.ok) throw new Error('Wikidata query failed');
-  const data = await response.json();
-  const boards = [];
-  for (const binding of data.results.bindings) {
-    const id = binding.item.value.split('/').pop();
-    boards.push({
-      id,
-      label: binding.itemLabel?.value || id,
-      description: binding.itemDescription?.value || '',
-      image: binding.image?.value ? await getCommonsImageUrl(binding.image.value) : null
-    });
-  }
-  return boards;
-}
-
-async function getBoardDetails(boardId) {
-  const sparql = `
-    SELECT ?prop ?propLabel ?value ?valueLabel WHERE {
-      wd:${boardId} ?prop ?value.
-      ?prop wikibase:propertyType wikibase:WikibaseItem.
-      FILTER(?prop != wdt:P31)
-      FILTER(?prop != wdt:P18)
-      OPTIONAL { ?value rdfs:label ?valueLabel filter (lang(?valueLabel) = "en") }
-      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-    }
-    LIMIT 100
-  `;
-  const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql);
-  const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-  if (!response.ok) throw new Error('Failed to get board details');
-  const data = await response.json();
-  const specs = [];
-  for (const binding of data.results.bindings) {
-    const propLabel = binding.propLabel?.value || binding.prop.value.split('/').pop();
-    const value = binding.valueLabel?.value || binding.value.value.split('/').pop();
-    specs.push({ label: propLabel, value });
-  }
-  const labelSparql = `
-    SELECT ?itemLabel ?itemDescription ?image WHERE {
-      wd:${boardId} rdfs:label ?itemLabel filter (lang(?itemLabel) = "en").
-      OPTIONAL { wd:${boardId} schema:description ?itemDescription filter (lang(?itemDescription) = "en"). }
-      OPTIONAL { wd:${boardId} wdt:P18 ?image. }
-    }
-    LIMIT 1
-  `;
-  const labelUrl = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(labelSparql);
-  const labelResponse = await fetch(labelUrl, { headers: { 'Accept': 'application/json' } });
-  const labelData = await labelResponse.json();
-  const labelBinding = labelData.results.bindings[0];
-  return {
-    id: boardId,
-    label: labelBinding?.itemLabel?.value || boardId,
-    description: labelBinding?.itemDescription?.value || '',
-    image: labelBinding?.image?.value ? await getCommonsImageUrl(labelBinding.image.value) : null,
-    specs,
-    url: `https://www.wikidata.org/wiki/${boardId}`
+function collection(type) {
+  const isBoard = type === "boards";
+  const items = data[type];
+  const title = isBoard ? "Dev Boards." : "Beautiful machines.";
+  const kicker = isBoard ? "Hardware index" : "Machine index";
+  shell(
+    isBoard ? "Dev Boards" : "Vehicles",
+    `<div class="page-heading"><div><div class="eyebrow">${kicker}</div><h2>${isBoard ? "Dev<br>boards." : "Beautiful<br>machines."}</h2></div><p class="heading-meta">${isBoard ? "A practical shelf of boards worth keeping within reach. Each one is a different kind of invitation." : "A small collection of vehicles with good proportions, odd solutions, or stories that got under the skin."}</p></div>${searchBar("Filter")}<div id="collection" class="board-grid">${items.map((item) => `<a class="board-card" href="#${type}/${item[0].toLowerCase()}" data-item="${item.join(" ").toLowerCase()}"><div class="board-mark">${item[0]}</div><div><h3>${item[1]}</h3><p>${item[2]}</p><span class="tag">${item[3]}</span></div></a>`).join("")}</div>`,
+  );
+  document.querySelector("#searchForm").onsubmit = (e) => {
+    e.preventDefault();
+    const query = document.querySelector("#searchInput").value.toLowerCase();
+    document
+      .querySelectorAll("[data-item]")
+      .forEach(
+        (item) =>
+          (item.style.display = item.dataset.item.includes(query)
+            ? ""
+            : "none"),
+      );
   };
 }
 
-// ------- Vehicles using Wikidata SPARQL -------
-async function fetchVehicles(query = '') {
-  const sparql = `
-    SELECT ?item ?itemLabel ?itemDescription ?image WHERE {
-      VALUES ?type { wd:Q3231690 wd:Q15056993 }
-      ?item wdt:P31 ?type.
-      OPTIONAL { ?item wdt:P18 ?image. }
-      OPTIONAL { ?item skos:altLabel ?altLabel filter(lang(?altLabel) = "en") }
-      ${query ? `FILTER(CONTAINS(LCASE(?itemLabel), "${query.toLowerCase()}") || CONTAINS(LCASE(?altLabel), "${query.toLowerCase()}"))` : ''}
-      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-    }
-    LIMIT 50
-  `;
-  const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql);
-  const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-  if (!response.ok) throw new Error('Wikidata query failed');
-  const data = await response.json();
-  const vehicles = [];
-  for (const binding of data.results.bindings) {
-    const id = binding.item.value.split('/').pop();
-    vehicles.push({
-      id,
-      label: binding.itemLabel?.value || id,
-      description: binding.itemDescription?.value || '',
-      image: binding.image?.value ? await getCommonsImageUrl(binding.image.value) : null
-    });
-  }
-  return vehicles;
-}
-
-async function getVehicleDetails(vehicleId) {
-  const sparql = `
-    SELECT ?prop ?propLabel ?value ?valueLabel WHERE {
-      wd:${vehicleId} ?prop ?value.
-      ?prop wikibase:propertyType wikibase:WikibaseItem.
-      FILTER(?prop != wdt:P31)
-      FILTER(?prop != wdt:P18)
-      OPTIONAL { ?value rdfs:label ?valueLabel filter (lang(?valueLabel) = "en") }
-      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-    }
-    LIMIT 100
-  `;
-  const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql);
-  const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-  if (!response.ok) throw new Error('Failed to get vehicle details');
-  const data = await response.json();
-  const specs = [];
-  for (const binding of data.results.bindings) {
-    const propLabel = binding.propLabel?.value || binding.prop.value.split('/').pop();
-    const value = binding.valueLabel?.value || binding.value.value.split('/').pop();
-    specs.push({ label: propLabel, value });
-  }
-  const labelSparql = `
-    SELECT ?itemLabel ?itemDescription ?image WHERE {
-      wd:${vehicleId} rdfs:label ?itemLabel filter (lang(?itemLabel) = "en").
-      OPTIONAL { wd:${vehicleId} schema:description ?itemDescription filter (lang(?itemDescription) = "en"). }
-      OPTIONAL { wd:${vehicleId} wdt:P18 ?image. }
-    }
-    LIMIT 1
-  `;
-  const labelUrl = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(labelSparql);
-  const labelResponse = await fetch(labelUrl, { headers: { 'Accept': 'application/json' } });
-  const labelData = await labelResponse.json();
-  const labelBinding = labelData.results.bindings[0];
-  return {
-    id: vehicleId,
-    label: labelBinding?.itemLabel?.value || vehicleId,
-    description: labelBinding?.itemDescription?.value || '',
-    image: labelBinding?.image?.value ? await getCommonsImageUrl(labelBinding.image.value) : null,
-    specs,
-    url: `https://www.wikidata.org/wiki/${vehicleId}`
+function github() {
+  shell(
+    "GitHub",
+    `<div class="page-heading"><div><div class="eyebrow">Code index</div><h2>Good code,<br>kept close.</h2></div><p class="heading-meta">A hand-picked local shelf of repositories that teach, surprise, or make the computer feel a little more legible.</p></div>${searchBar("Filter")}<div class="filters">${["All", "Python", "C", "TypeScript"].map((language) => `<button class="filter-chip ${language === "All" ? "selected" : ""}" data-language="${language}">${language}</button>`).join("")}</div><div id="repos" class="repo-grid">${data.repos.map((repo) => `<article class="repo-card" data-repo="${repo.join(" ").toLowerCase()}"><div class="result-top"><span>${repo[0]}</span><span>★ ${repo[4]}</span></div><h3>${repo[0]} / ${repo[1]}</h3><p>${repo[2]}</p><div class="repo-meta"><span><strong>${repo[3]}</strong></span><span>Open source</span><a href="https://github.com/${repo[0]}/${repo[1]}" target="_blank">↗</a></div></article>`).join("")}</div>`,
+  );
+  document.querySelectorAll("[data-language]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        document
+          .querySelectorAll("[data-language]")
+          .forEach((item) => item.classList.remove("selected"));
+        button.classList.add("selected");
+        const language = button.dataset.language.toLowerCase();
+        document
+          .querySelectorAll("[data-repo]")
+          .forEach(
+            (repo) =>
+              (repo.style.display =
+                language === "all" || repo.dataset.repo.includes(language)
+                  ? ""
+                  : "none"),
+          );
+      }),
+  );
+  document.querySelector("#searchForm").onsubmit = (e) => {
+    e.preventDefault();
+    const query = document.querySelector("#searchInput").value.toLowerCase();
+    document
+      .querySelectorAll("[data-repo]")
+      .forEach(
+        (repo) =>
+          (repo.style.display = repo.dataset.repo.includes(query)
+            ? ""
+            : "none"),
+      );
   };
 }
 
-// ------- GitHub -------
-async function searchRepositories(query) {
-  if (!query) return [];
-  const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=30`;
-  const response = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
-  if (!response.ok) {
-    if (response.status === 403) throw new Error('GitHub rate limit exceeded. Try again later.');
-    throw new Error(`GitHub search failed (${response.status})`);
-  }
-  const data = await response.json();
-  return data.items.map(repo => ({
-    id: repo.id,
-    full_name: repo.full_name,
-    name: repo.name,
-    owner: repo.owner.login,
-    description: repo.description || '',
-    stars: repo.stargazers_count,
-    forks: repo.forks_count,
-    language: repo.language,
-    html_url: repo.html_url,
-    avatar_url: repo.owner.avatar_url
-  }));
+function markets() {
+  shell(
+    "Markets",
+    `<div class="page-heading"><div><div class="eyebrow">Market watch</div><h2>Keep one eye<br>on the weather.</h2></div><p class="heading-meta">A small, deliberately un-serious market watch. Numbers are signals, not instructions. Do your own thinking.</p></div><div class="market-grid">${data.stocks.map((stock, i) => `<button class="market-card" data-stock="${i}"><div class="market-name"><span>${stock[0]}</span><span>${stock[1]}</span></div><div class="market-price">${stock[2]}</div><div class="market-change ${stock[3][0] === "+" ? "up" : ""}">${stock[3]} today</div></button>`).join("")}</div><div class="chart-block"><div class="chart-head"><div><div class="eyebrow">Intraday sketch</div><h3 id="chartTitle">NVIDIA / NVDA</h3><p>Local mock reading · updated just now</p></div><div class="market-price up" id="chartPrice">$875.28</div></div><svg class="chart-svg" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="0,68 12,75 26,52 39,60 51,30 65,42 80,18 100,27" fill="none" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg></div>`,
+  );
+  document.querySelectorAll("[data-stock]").forEach(
+    (card) =>
+      (card.onclick = () => {
+        const stock = data.stocks[card.dataset.stock];
+        document.querySelector("#chartTitle").textContent =
+          `${stock[1]} / ${stock[0]}`;
+        document.querySelector("#chartPrice").textContent = stock[2];
+      }),
+  );
 }
 
-async function getRepoDetails(owner, repoName) {
-  const url = `https://api.github.com/repos/${owner}/${repoName}`;
-  const response = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
-  if (!response.ok) {
-    if (response.status === 403) throw new Error('GitHub rate limit exceeded.');
-    if (response.status === 404) throw new Error('Repository not found.');
-    throw new Error(`Failed to fetch repo (${response.status})`);
-  }
-  const repo = await response.json();
-  return {
-    full_name: repo.full_name,
-    name: repo.name,
-    owner: repo.owner.login,
-    description: repo.description || '',
-    stars: repo.stargazers_count,
-    forks: repo.forks_count,
-    open_issues: repo.open_issues_count,
-    language: repo.language,
-    license: repo.license?.spdx_id || 'None',
-    created_at: repo.created_at,
-    updated_at: repo.updated_at,
-    html_url: repo.html_url,
-    avatar_url: repo.owner.avatar_url
+function forge() {
+  const ideas = [
+    [
+      "A field recorder for city noise",
+      "Pair an ESP32-S3 with a cheap microphone and map the texture of a neighborhood at different hours.",
+      "ESP32-S3 · AUDIO · MAPS",
+    ],
+    [
+      "The dashboard that refuses dashboards",
+      "A tiny e-ink display for one honest number: how much of your day did you spend making something?",
+      "PICO 2 · E-INK · HABITS",
+    ],
+    [
+      "Mechanical sympathy",
+      "Use a phone camera and a small model to listen for the moment an old engine starts to drift.",
+      "TINYGRAD · DIAGNOSTICS · CAR",
+    ],
+  ];
+  const idea = ideas[ideaNumber];
+  shell(
+    "Project Forge",
+    `<div class="page-heading"><div><div class="eyebrow">Project Forge</div><h2>Turn a hunch<br>into a <em>build.</em></h2></div><p class="heading-meta">A small machine for combining ingredients. Not a generator of productivity — a nudge toward something you can put on a desk.</p></div><div class="forge-layout"><section class="forge-prompt"><div class="eyebrow">Current collision</div><h3 id="ideaTitle">${idea[0]}</h3><p id="ideaDescription">${idea[1]}</p><div class="forge-controls"><button class="button-primary" id="nextIdea">✦ Find another</button><button class="button-quiet" id="saveIdea">${savedIdea ? "✓ Saved" : "♡ Keep it"}</button></div></section><section class="idea-stack"><article class="idea-card"><span class="idea-index">01 / THE BRIEF</span><h3>What would make this physical?</h3><p>Start with a constraint: one sensor, one afternoon, one person who would actually use it.</p></article><article class="idea-card"><span class="idea-index">02 / INGREDIENTS</span><h3>Borrow before you build.</h3><p id="ideaTags">${idea[2]}</p></article></section></div>`,
+  );
+  document.querySelector("#nextIdea").onclick = () => {
+    ideaNumber = (ideaNumber + 1) % ideas.length;
+    forge();
+  };
+  document.querySelector("#saveIdea").onclick = () => {
+    savedIdea = !savedIdea;
+    forge();
   };
 }
 
-async function getStarHistory(owner, repoName) {
-  try {
-    const perPage = 100;
-    const url = `https://api.github.com/repos/${owner}/${repoName}/stargazers?per_page=${perPage}`;
-    const response = await fetch(url, { headers: { 'Accept': 'application/vnd.github.star+json' } });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.map(u => new Date(u.starred_at).getTime()).sort((a,b) => a-b);
-  } catch (e) {
-    return [];
-  }
+function simplePage(route) {
+  const copy =
+    route === "hackclub"
+      ? [
+          "The open workshop",
+          "Make things<br><em>with people.</em>",
+          "Hack Club is a global network of young builders. Find events, collaborators, and people who take the weird prototype seriously.",
+          "Visit hackclub.com",
+        ]
+      : [
+          "A note from the desk",
+          "Small tools<br>should feel <em>alive.</em>",
+          "God Mode is a frontend-only workspace. It uses local mock data so the first experience is quick, dependable, and a little more private.",
+          "Back to the desk",
+        ];
+  shell(
+    labels[route],
+    `<div class="page-heading"><div><div class="eyebrow">${copy[0]}</div><h2>${copy[1]}</h2></div><p class="heading-meta">${copy[2]}</p></div><div class="support-grid"><div class="support-card"><h3>${route === "hackclub" ? "Ship a little thing" : "How to use this place"}</h3><p>${route === "hackclub" ? "Build a website, a game, a robot, or a tool for your friends. The only useful brief is the one that gets you to the first commit." : "Search when you have a thread. Browse when you do not. Use the Forge when two unrelated tabs start making eye contact."}</p><a class="button-quiet" href="${route === "hackclub" ? "https://hackclub.com/" : "#home"}" target="${route === "hackclub" ? "_blank" : ""}">${copy[3]} →</a></div><div class="support-card"><h3>A place to show up</h3><p>Keep your curiosity close. The next useful project usually starts with an unfinished idea and a little room to explore.</p></div></div>`,
+  );
 }
 
-async function getRepoREADME(owner, repoName) {
-  const branches = ['main', 'master'];
-  const files = ['README.md', 'readme.md', 'README.rst', 'Readme.md', 'README'];
-  for (const branch of branches) {
-    for (const file of files) {
-      const url = `https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${file}`;
-      try {
-        const response = await fetch(url);
-        if (response.ok) return await response.text();
-      } catch (e) {}
-    }
-  }
-  return null;
+function render() {
+  const route = location.hash.slice(1).split("/")[0] || "home";
+  if (route === "home") home();
+  else if (route === "boards" || route === "vehicles") collection(route);
+  else if (route === "github") github();
+  else if (route === "markets") markets();
+  else if (route === "forge") forge();
+  else simplePage(route === "hackclub" ? "hackclub" : "support");
 }
 
-// ------- Hack Club -------
-async function getHackClubRepos() {
-  const url = `https://api.github.com/orgs/hackclub/repos?per_page=30&sort=updated`;
-  const response = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
-  if (!response.ok) throw new Error('Failed to fetch Hack Club repos');
-  const repos = await response.json();
-  return repos.map(repo => ({
-    id: repo.id,
-    full_name: repo.full_name,
-    name: repo.name,
-    description: repo.description || '',
-    stars: repo.stargazers_count,
-    forks: repo.forks_count,
-    language: repo.language,
-    html_url: repo.html_url,
-    avatar_url: repo.owner.avatar_url,
-    owner: repo.owner.login
-  }));
-}
-
-async function getHackClubScrapbook() {
-  const url = 'https://scrapbook.hackclub.com/api/users/';
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Scrapbook API unavailable');
-    return await response.json();
-  } catch (e) {
-    return null;
-  }
-}
-
-// ------- Stocks (with fallbacks) -------
-async function getStockData(symbol) {
-  const proxy = 'https://api.allorigins.win/raw?url=';
-  // Try Stooq daily data first
-  try {
-    const dailyUrl = `https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`;
-    const response = await fetch(proxy + encodeURIComponent(dailyUrl));
-    if (response.ok) {
-      const csv = await response.text();
-      const lines = csv.trim().split('\n');
-      if (lines.length >= 2) {
-        const header = lines[0].split(',');
-        const dateIdx = header.indexOf('Date');
-        const closeIdx = header.indexOf('Close');
-        const openIdx = header.indexOf('Open');
-        if (dateIdx !== -1 && closeIdx !== -1) {
-          const data = [];
-          for (let i = 1; i < lines.length; i++) {
-            const parts = lines[i].split(',');
-            const date = parts[dateIdx];
-            const close = parseFloat(parts[closeIdx]);
-            const open = openIdx !== -1 ? parseFloat(parts[openIdx]) : close;
-            if (!isNaN(close)) data.push({ date, close, open });
-          }
-          if (data.length > 0) {
-            const latest = data[data.length - 1];
-            const previous = data[data.length - 2] || data[0];
-            const change = latest.close - previous.close;
-            const changePercent = (change / previous.close) * 100;
-            const chartData = data.slice(-20).map(d => d.close);
-            return {
-              symbol,
-              price: latest.close,
-              change,
-              changePercent,
-              historical: data,
-              chart: {
-                labels: data.slice(-20).map(d => d.date),
-                data: chartData
-              }
-            };
-          }
-        }
-      }
-    }
-  } catch (e) {}
-
-  // Yahoo Finance direct
-  try {
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=5m`;
-    const response = await fetch(yahooUrl);
-    if (response.ok) {
-      const data = await response.json();
-      const result = data.chart.result[0];
-      const meta = result.meta;
-      const timestamps = result.timestamp;
-      const quotes = result.indicators.quote[0];
-      const closes = quotes.close;
-      const labels = timestamps.map(ts => new Date(ts * 1000).toLocaleTimeString());
-      const chartData = closes.map((c, i) => ({ x: labels[i], y: c })).filter(p => p.y !== null);
-      return {
-        symbol: meta.symbol,
-        price: meta.regularMarketPrice,
-        change: meta.regularMarketPrice - meta.chartPreviousClose,
-        changePercent: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100,
-        historical: null,
-        chart: {
-          labels: chartData.map(p => p.x),
-          data: chartData.map(p => p.y)
-        }
-      };
-    }
-  } catch (e) {}
-
-  // Yahoo Finance via proxy
-  try {
-    const yahooProxyUrl = proxy + encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1d&interval=5m`);
-    const response = await fetch(yahooProxyUrl);
-    if (response.ok) {
-      const data = await response.json();
-      const result = data.chart.result[0];
-      const meta = result.meta;
-      const timestamps = result.timestamp;
-      const quotes = result.indicators.quote[0];
-      const closes = quotes.close;
-      const labels = timestamps.map(ts => new Date(ts * 1000).toLocaleTimeString());
-      const chartData = closes.map((c, i) => ({ x: labels[i], y: c })).filter(p => p.y !== null);
-      return {
-        symbol: meta.symbol,
-        price: meta.regularMarketPrice,
-        change: meta.regularMarketPrice - meta.chartPreviousClose,
-        changePercent: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100,
-        historical: null,
-        chart: {
-          labels: chartData.map(p => p.x),
-          data: chartData.map(p => p.y)
-        }
-      };
-    }
-  } catch (e) {}
-
-  // Last try: Stooq single quote
-  try {
-    const stooqUrl = `https://stooq.com/q/l/?s=${encodeURIComponent(symbol)}&f=sd2t2ohlcv&h&e=csv`;
-    const response = await fetch(proxy + encodeURIComponent(stooqUrl));
-    if (response.ok) {
-      const csv = await response.text();
-      const lines = csv.trim().split('\n');
-      if (lines.length >= 2) {
-        const header = lines[0].split(',');
-        const dataLine = lines[1].split(',');
-        const price = parseFloat(dataLine[header.indexOf('Close')]);
-        const prevClose = parseFloat(dataLine[header.indexOf('Open')]);
-        if (!isNaN(price) && !isNaN(prevClose)) {
-          return {
-            symbol,
-            price,
-            change: price - prevClose,
-            changePercent: ((price - prevClose) / prevClose) * 100,
-            historical: null,
-            chart: {
-              labels: ['Open', 'Close'],
-              data: [prevClose, price]
-            }
-          };
-        }
-      }
-    }
-  } catch (e) {}
-
-  throw new Error('Failed to fetch stock data. Please check symbol or try again later.');
-}
-
-/* ==================== MARKET ANALYSIS ==================== */
-function calculateRSI(stockData) {
-  const closes = stockData.historical ? stockData.historical.map(d => d.close) : stockData.chart.data;
-  if (closes.length < 15) return 'Insufficient data';
-  let gains = 0, losses = 0;
-  for (let i = closes.length - 14; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff > 0) gains += diff; else losses -= diff;
-  }
-  const avgGain = gains / 14;
-  const avgLoss = losses / 14;
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return (100 - (100 / (1 + rs))).toFixed(2);
-}
-
-function calculateVolatility(stockData) {
-  const closes = stockData.historical ? stockData.historical.map(d => d.close) : stockData.chart.data;
-  if (closes.length < 2) return 'Insufficient data';
-  const high = Math.max(...closes);
-  const low = Math.min(...closes);
-  return ((high - low) / low * 100).toFixed(2) + '%';
-}
-
-function getRecentMovement(stockData) {
-  const closes = stockData.historical ? stockData.historical.map(d => d.close) : stockData.chart.data;
-  if (closes.length >= 5) {
-    const last5 = closes.slice(-5);
-    const avg = last5.reduce((sum, val) => sum + val, 0) / last5.length;
-    const latest = closes[closes.length - 1];
-    const changePct = ((latest - avg) / avg) * 100;
-    if (changePct > 0.3) return { label: 'Bullish' };
-    else if (changePct < -0.3) return { label: 'Bearish' };
-    else return { label: 'Sideways' };
-  }
-  return { label: 'Not enough data' };
-}
-
-function calculateRepoActivity(repo) {
-  const daysSinceUpdate = (Date.now() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24);
-  const activity = (repo.stars * 2) + (repo.forks * 1) - (daysSinceUpdate * 0.1);
-  return Math.max(0, activity).toFixed(0);
-}
-
-function repoActivityVerdict(repo) {
-  const activity = calculateRepoActivity(repo);
-  if (activity > 1000) return 'Very active and popular';
-  if (activity > 100) return 'Active';
-  return 'Low activity';
-}
-
-function extractKeywords(text) {
-  const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'of', 'for', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'being']);
-  const words = text.toLowerCase().match(/\b\w+\b/g) || [];
-  const freq = {};
-  words.forEach(w => {
-    if (!stopWords.has(w) && w.length > 3) freq[w] = (freq[w] || 0) + 1;
-  });
-  return Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 5).map(e => e[0]);
-}
-
-/* ==================== ANALYSIS MAIN FUNCTION ==================== */
-async function analyzeItem(input) {
-  // If it looks like owner/repo
-  if (input.includes('/')) {
-    const [owner, repoName] = input.split('/');
-    try {
-      const repo = await getRepoDetails(owner, repoName);
-      return `
-        <h3>GitHub Repo Analysis: ${repo.full_name}</h3>
-        <p><strong>Stars:</strong> ${repo.stars}</p>
-        <p><strong>Forks:</strong> ${repo.forks}</p>
-        <p><strong>Open Issues:</strong> ${repo.open_issues}</p>
-        <p><strong>Language:</strong> ${repo.language || 'N/A'}</p>
-        <p><strong>License:</strong> ${repo.license}</p>
-        <p><strong>Activity Score:</strong> ${calculateRepoActivity(repo)}</p>
-        <p>Recommendation: ${repoActivityVerdict(repo)}</p>
-      `;
-    } catch (e) {
-      throw new Error('GitHub analysis failed: ' + e.message);
-    }
-  }
-
-  // If it matches a stock symbol (all caps/numbers/dots)
-  if (/^[A-Z0-9.]+$/.test(input) && input.length <= 10) {
-    try {
-      const data = await getStockData(input);
-      const movement = getRecentMovement(data);
-      return `
-        <h3>Stock Analysis: ${data.symbol}</h3>
-        <p><strong>Price:</strong> $${data.price.toFixed(2)}</p>
-        <p><strong>Change:</strong> ${data.change.toFixed(2)} (${data.changePercent.toFixed(2)}%)</p>
-        <p><strong>Recent Movement:</strong> ${movement.label}</p>
-        <p><strong>RSI (14):</strong> ${calculateRSI(data)}</p>
-        <p><strong>Volatility:</strong> ${calculateVolatility(data)}</p>
-        <p><strong>Recommendation:</strong> ${movement.label === 'Bullish' ? 'Upward momentum' : movement.label === 'Bearish' ? 'Downward momentum' : 'Neutral'}</p>
-      `;
-    } catch (e) {}
-  }
-
-  // Try Wikipedia first
-  try {
-    const wikiResults = await searchWikipedia(input);
-    if (wikiResults.length > 0) {
-      const wiki = await getWikipediaDetails(wikiResults[0].title);
-      if (wiki && wiki.extract) {
-        return `
-          <h3>Wikipedia Article Analysis: ${wiki.title}</h3>
-          <p><strong>Summary:</strong> ${wiki.extract.slice(0, 300)}...</p>
-          <p><strong>Reading Time:</strong> ~${Math.ceil(wiki.extract.split(' ').length / 200)} min</p>
-          <p><strong>Keywords:</strong> ${extractKeywords(wiki.extract).join(', ')}</p>
-        `;
-      }
-    }
-  } catch (e) {}
-
-  // Then dev boards
-  try {
-    const boards = await searchDevBoards(input);
-    if (boards.length > 0) {
-      const board = await getBoardDetails(boards[0].id);
-      return `
-        <h3>Dev Board Analysis: ${board.label}</h3>
-        <p><strong>Description:</strong> ${board.description || 'N/A'}</p>
-        <p><strong>Specifications:</strong> ${board.specs.map(s => `${s.label}: ${s.value}`).join('; ') || 'N/A'}</p>
-      `;
-    }
-  } catch (e) {}
-
-  // Then vehicles
-  try {
-    const vehicles = await fetchVehicles(input);
-    if (vehicles.length > 0) {
-      const vehicle = await getVehicleDetails(vehicles[0].id);
-      return `
-        <h3>Vehicle Analysis: ${vehicle.label}</h3>
-        <p><strong>Description:</strong> ${vehicle.description || 'N/A'}</p>
-        <p><strong>Specifications:</strong> ${vehicle.specs.map(s => `${s.label}: ${s.value}`).join('; ') || 'N/A'}</p>
-      `;
-    }
-  } catch (e) {}
-
-  throw new Error('Could not identify the item. Try a stock symbol (e.g., AAPL), GitHub repo (owner/repo), or a keyword for Wikipedia/Dev Boards/Vehicles.');
-}
-
-/* ==================== PROJECT FORGE ==================== */
-async function generateProjectIdeas() {
-  const topics = ['IoT', 'machine learning', 'environment', 'health', 'robotics', 'audio', 'gaming'];
-  const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-
-  const [boards, repos, wikiArticles] = await Promise.allSettled([
-    searchDevBoards(''),
-    searchRepositories(randomTopic),
-    searchWikipedia(randomTopic)
-  ]);
-
-  const board = boards.status === 'fulfilled' && boards.value.length ? boards.value[Math.floor(Math.random() * boards.value.length)] : null;
-  const repo = repos.status === 'fulfilled' && repos.value.length ? repos.value[Math.floor(Math.random() * repos.value.length)] : null;
-  const wiki = wikiArticles.status === 'fulfilled' && wikiArticles.value.length ? wikiArticles.value[Math.floor(Math.random() * wikiArticles.value.length)] : null;
-
-  const ideas = [];
-
-  if (board && repo) {
-    ideas.push({
-      title: `Build a ${board.label} project using ${repo.full_name}`,
-      description: `Combine the hardware capabilities of ${board.label} with the software from ${repo.full_name}.`,
-      components: [board.label, repo.full_name, repo.language || 'code']
-    });
-  }
-  if (board && wiki) {
-    ideas.push({
-      title: `${wiki.title} on ${board.label}`,
-      description: `Create a device that visualizes or interacts with data related to ${wiki.title} using ${board.label}.`,
-      components: [board.label, wiki.title, 'web dashboard']
-    });
-  }
-  if (repo && wiki) {
-    ideas.push({
-      title: `Enhance ${repo.full_name} with ${wiki.title}`,
-      description: `Use insights from ${wiki.title} to add new features to ${repo.full_name}.`,
-      components: [repo.full_name, wiki.title, 'API integration']
-    });
-  }
-  ideas.push({
-    title: `Monitor ${randomTopic} in real-time`,
-    description: `Build a dashboard that tracks ${randomTopic} metrics using public APIs and displays them on a web interface.`,
-    components: ['Web dashboard', 'Public API', 'Chart.js']
-  });
-
-  return ideas;
-}
-
-/* ==================== UI ROUTER ==================== */
-function router() {
-  const hash = location.hash || '#/';
-  const parts = hash.split('/');
-  const section = parts[1] || 'home';
-  const params = parts.slice(2).map(decodeURIComponent);
-
-  document.querySelectorAll('.nav-link').forEach(link => {
-    link.classList.toggle('active', link.dataset.section === section);
-  });
-
-  switch (section) {
-    case 'home': renderHome(); break;
-    case 'devboards': renderDevBoards(params); break;
-    case 'github': renderGitHub(params); break;
-    case 'hackclub': renderHackClub(params); break;
-    case 'vehicles': renderVehicles(params); break;
-    case 'stocks': renderStocks(params); break;
-    case 'analysis': renderAnalysis(); break;
-    case 'forge': renderProjectForge(); break;
-    case 'support': renderSupport(); break;
-    case 'wiki': if (params.length === 1) renderWikipediaDetail(params[0]); else renderHome(); break;
-    default: renderHome();
-  }
-}
-
-/* ==================== HOME (God Search) ==================== */
-function renderHome() {
-  app.innerHTML = `
-    <h2>God Search</h2>
-    <p>Welcome to <strong>Website God Mode</strong> – your all‑in‑one gateway to the world’s knowledge, hardware, and markets. This single‑page application fetches live data from multiple public sources on demand, without storing any information on a server.</p>
-    <div class="section-ref">About this project: Website God Mode is a client‑side aggregator that connects to Wikipedia, GitHub, Hack Club, Wikidata, and financial APIs to bring you instant results across encyclopedic articles, development boards, vehicles, repositories, and stocks. Built with pure HTML, CSS, and JavaScript, it requires no backend and leaves no data trail. Use the navigation bar to explore specialized sections, or search across all sources simultaneously below.</div>
-    <div class="search-bar">
-      <input type="text" id="god-search-input" placeholder="Search anything..." />
-      <button id="god-search-btn">Search</button>
-    </div>
-    <div id="search-results"></div>
-  `;
-  document.getElementById('god-search-btn').addEventListener('click', performUnifiedSearch);
-  document.getElementById('god-search-input').addEventListener('keypress', e => {
-    if (e.key === 'Enter') performUnifiedSearch();
-  });
-}
-
-async function performUnifiedSearch() {
-  const query = document.getElementById('god-search-input').value.trim();
-  if (!query) return;
-  const resultsContainer = document.getElementById('search-results');
-  resultsContainer.innerHTML = '<div class="loading">Searching all sources...</div>';
-
-  const [wikiResults, githubResults, boardResults, vehicleResults] = await Promise.allSettled([
-    searchWikipedia(query),
-    searchRepositories(query),
-    searchDevBoards(query),
-    fetchVehicles(query)
-  ]);
-
-  let html = '';
-
-  if (wikiResults.status === 'fulfilled' && wikiResults.value.length) {
-    html += '<h3>Wikipedia</h3><div class="card-grid">';
-    wikiResults.value.slice(0, 10).forEach(item => {
-      html += `
-        <div class="card" onclick="location.hash='#/wiki/${encodeURIComponent(item.title)}'">
-          ${item.thumbnail ? `<img src="${item.thumbnail}" alt="${item.title}" loading="lazy">` : ''}
-          <div class="card-body">
-            <div class="card-title">${item.title}</div>
-            <div class="card-description">${item.description || ''}</div>
-          </div>
-        </div>`;
-    });
-    html += '</div>';
-  }
-
-  if (githubResults.status === 'fulfilled' && githubResults.value.length) {
-    html += '<h3>GitHub Repositories</h3><div class="card-grid">';
-    githubResults.value.slice(0, 10).forEach(repo => {
-      html += `
-        <div class="card" onclick="location.hash='#/github/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}'">
-          <div class="card-body">
-            <div class="card-title">${repo.full_name}</div>
-            <div class="card-description">${repo.description || ''}</div>
-            <div class="repo-stats"> ${repo.stars}</div>
-          </div>
-        </div>`;
-    });
-    html += '</div>';
-  }
-
-  if (boardResults.status === 'fulfilled' && boardResults.value.length) {
-    html += '<h3>Dev Boards</h3><div class="card-grid">';
-    boardResults.value.slice(0, 10).forEach(board => {
-      html += `
-        <div class="card" onclick="location.hash='#/devboards/${encodeURIComponent(board.id)}'">
-          ${board.image ? `<img src="${board.image}" alt="${board.label}" loading="lazy">` : ''}
-          <div class="card-body">
-            <div class="card-title">${board.label}</div>
-            <div class="card-description">${board.description || ''}</div>
-          </div>
-        </div>`;
-    });
-    html += '</div>';
-  }
-
-  if (vehicleResults.status === 'fulfilled' && vehicleResults.value.length) {
-    html += '<h3>Vehicles</h3><div class="card-grid">';
-    vehicleResults.value.slice(0, 10).forEach(v => {
-      html += `
-        <div class="card" onclick="location.hash='#/vehicles/${encodeURIComponent(v.id)}'">
-          ${v.image ? `<img src="${v.image}" alt="${v.label}" loading="lazy">` : ''}
-          <div class="card-body">
-            <div class="card-title">${v.label}</div>
-            <div class="card-description">${v.description || ''}</div>
-          </div>
-        </div>`;
-    });
-    html += '</div>';
-  }
-
-  if (!html) html = '<p>No results found across any source.</p>';
-  resultsContainer.innerHTML = html;
-}
-
-/* ==================== WIKIPEDIA DETAIL ==================== */
-async function renderWikipediaDetail(title) {
-  app.innerHTML = '<div class="loading">Loading Wikipedia article...</div>';
-  try {
-    const cached = cacheGet(`wiki_${title}`);
-    let details;
-    if (cached) details = cached;
-    else {
-      details = await getWikipediaDetails(title);
-      cacheSet(`wiki_${title}`, details);
-    }
-    app.innerHTML = `
-      <button class="back-btn" onclick="history.back()">Back</button>
-      <div class="detail-panel">
-        <h2>${details.title}</h2>
-        ${details.image ? `<img src="${details.image}" referrerpolicy="no-referrer">` : ''}
-        <p>${details.extract || ''}</p>
-        <p><a href="${details.url}" target="_blank" rel="noopener">Read full article on Wikipedia</a></p>
-      </div>
-    `;
-  } catch (err) {
-    app.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-/* ==================== DEV BOARDS SECTION ==================== */
-async function renderDevBoards(params) {
-  if (params.length === 1 && params[0] !== '') {
-    const boardId = params[0];
-    app.innerHTML = '<div class="loading">Loading board details...</div>';
-    try {
-      const cached = cacheGet(`board_${boardId}`);
-      let board;
-      if (cached) board = cached;
-      else {
-        board = await getBoardDetails(boardId);
-        cacheSet(`board_${boardId}`, board);
-      }
-      showBoardDetail(board);
-    } catch (err) {
-      app.innerHTML = `<div class="error">${err.message}</div>`;
-    }
-    return;
-  }
-
-  app.innerHTML = `
-    <h2>Dev Boards</h2>
-    <p class="section-ref">Source: Wikidata SPARQL (single‑board computers & microcontrollers)</p>
-    <p>Search hardware development boards. Partial names and aliases are supported.</p>
-    <div class="search-bar">
-      <input type="text" id="board-search-input" placeholder="e.g., rasp, arduino, esp" />
-      <button id="board-search-btn">Search</button>
-    </div>
-    <div id="board-results"></div>
-  `;
-  document.getElementById('board-search-btn').addEventListener('click', searchBoards);
-  document.getElementById('board-search-input').addEventListener('keypress', e => {
-    if (e.key === 'Enter') searchBoards();
-  });
-  searchBoards();
-}
-
-async function searchBoards() {
-  const input = document.getElementById('board-search-input');
-  const query = input ? input.value.trim() : '';
-  const resultsContainer = document.getElementById('board-results');
-  resultsContainer.innerHTML = '<div class="loading">Querying Wikidata...</div>';
-  try {
-    const cached = cacheGet(`boards_${query}`);
-    let boards;
-    if (cached) boards = cached;
-    else {
-      boards = await searchDevBoards(query);
-      cacheSet(`boards_${query}`, boards);
-    }
-    displayBoardResults(boards, resultsContainer);
-  } catch (err) {
-    resultsContainer.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-function displayBoardResults(boards, container) {
-  if (boards.length === 0) {
-    container.innerHTML = '<p>No boards found. Try a broader term.</p>';
-    return;
-  }
-  container.innerHTML = '<div class="card-grid"></div>';
-  const grid = container.querySelector('.card-grid');
-  boards.forEach(board => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      ${board.image ? `<img src="${board.image}" alt="${board.label}" loading="lazy">` : ''}
-      <div class="card-body">
-        <div class="card-title">${board.label}</div>
-        <div class="card-description">${board.description || ''}</div>
-      </div>
-    `;
-    card.addEventListener('click', () => {
-      location.hash = `#/devboards/${encodeURIComponent(board.id)}`;
-    });
-    grid.appendChild(card);
-  });
-}
-
-function showBoardDetail(board) {
-  app.innerHTML = `
-    <button class="back-btn" onclick="history.back()">Back</button>
-    <div class="detail-panel">
-      <h2>${board.label}</h2>
-      ${board.image ? `<img src="${board.image}" referrerpolicy="no-referrer">` : ''}
-      <p>${board.description || ''}</p>
-      <h3>Specifications</h3>
-      <table>
-        <tbody>
-          ${board.specs.map(spec => `<tr><td><strong>${spec.label}</strong></td><td>${spec.value}</td></tr>`).join('')}
-        </tbody>
-      </table>
-      <p><a href="${board.url}" target="_blank" rel="noopener">View on Wikidata</a></p>
-    </div>
-  `;
-}
-
-/* ==================== GITHUB SECTION ==================== */
-function renderGitHub(params) {
-  if (params.length === 2) {
-    const owner = params[0];
-    const repoName = params[1];
-    app.innerHTML = '<div class="loading">Loading repository...</div>';
-    loadGitHubRepoDetails(owner, repoName);
-    return;
-  }
-  app.innerHTML = `
-    <h2>GitHub Repos</h2>
-    <p class="section-ref">Source: GitHub REST API (public repositories)</p>
-    <p>Search public repositories. Enter keywords or partial names.</p>
-    <div class="search-bar">
-      <input type="text" id="github-search-input" placeholder="e.g., machine learning, react" />
-      <button id="github-search-btn">Search</button>
-    </div>
-    <div id="github-results"></div>
-  `;
-  document.getElementById('github-search-btn').addEventListener('click', searchGitHub);
-  document.getElementById('github-search-input').addEventListener('keypress', e => {
-    if (e.key === 'Enter') searchGitHub();
-  });
-}
-
-async function searchGitHub() {
-  const query = document.getElementById('github-search-input').value.trim();
-  if (!query) return;
-  const resultsContainer = document.getElementById('github-results');
-  resultsContainer.innerHTML = '<div class="loading">Searching GitHub...</div>';
-  try {
-    const cached = cacheGet(`gh_${query}`);
-    let repos;
-    if (cached) repos = cached;
-    else {
-      repos = await searchRepositories(query);
-      cacheSet(`gh_${query}`, repos);
-    }
-    displayGitHubRepos(repos, resultsContainer);
-  } catch (err) {
-    resultsContainer.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-function displayGitHubRepos(repos, container) {
-  if (repos.length === 0) {
-    container.innerHTML = '<p>No repositories found.</p>';
-    return;
-  }
-  container.innerHTML = '<div class="card-grid"></div>';
-  const grid = container.querySelector('.card-grid');
-  repos.forEach(repo => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <div class="card-body">
-        <div class="card-title"><img src="${repo.avatar_url}" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:8px;">${repo.full_name}</div>
-        <div class="card-description">${repo.description || ''}</div>
-        <div class="repo-stats">Stars ${repo.stars}  Forks ${repo.forks}  ${repo.language ? repo.language : ''}</div>
-      </div>
-    `;
-    card.addEventListener('click', () => {
-      location.hash = `#/github/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
-    });
-    grid.appendChild(card);
-  });
-}
-
-async function loadGitHubRepoDetails(owner, repoName) {
-  try {
-    const repoKey = `repo_${owner}_${repoName}`;
-    const cachedRepo = cacheGet(repoKey);
-    let repo;
-    if (cachedRepo) repo = cachedRepo;
-    else {
-      repo = await getRepoDetails(owner, repoName);
-      cacheSet(repoKey, repo);
-    }
-    const readme = await getRepoREADME(owner, repoName).catch(() => null);
-    const starDates = await getStarHistory(owner, repoName).catch(() => []);
-    showGitHubRepoDetail(repo, readme, starDates);
-  } catch (err) {
-    app.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-function showGitHubRepoDetail(repo, readme, starDates) {
-  app.innerHTML = `
-    <button class="back-btn" onclick="history.back()">Back</button>
-    <div class="detail-panel">
-      <h2><img src="${repo.avatar_url}" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:10px;">${repo.full_name}</h2>
-      <p>${repo.description || ''}</p>
-      <table>
-        <tr><td><strong>Stars</strong></td><td>${repo.stars}</td></tr>
-        <tr><td><strong>Forks</strong></td><td>${repo.forks}</td></tr>
-        <tr><td><strong>Open Issues</strong></td><td>${repo.open_issues}</td></tr>
-        <tr><td><strong>Language</strong></td><td>${repo.language || 'N/A'}</td></tr>
-        <tr><td><strong>License</strong></td><td>${repo.license}</td></tr>
-        <tr><td><strong>Created</strong></td><td>${new Date(repo.created_at).toLocaleDateString()}</td></tr>
-        <tr><td><strong>Last Updated</strong></td><td>${new Date(repo.updated_at).toLocaleDateString()}</td></tr>
-      </table>
-      <p><a href="${repo.html_url}" target="_blank" rel="noopener">View on GitHub</a></p>
-      ${starDates.length > 0 ? `<canvas id="star-chart" style="width:100%;height:300px;margin-top:20px;"></canvas>` : '<p>Star history not available.</p>'}
-      ${readme ? `<h3>README (first 500 chars)</h3><pre style="white-space:pre-wrap;word-break:break-word;background:rgba(255,255,255,0.3);padding:1rem;border-radius:8px;">${readme.slice(0, 500)}...</pre>` : ''}
-    </div>
-  `;
-  if (starDates.length > 0) {
-    const ctx = document.getElementById('star-chart').getContext('2d');
-    const counts = {};
-    starDates.forEach(date => {
-      const day = new Date(date).toLocaleDateString();
-      counts[day] = (counts[day] || 0) + 1;
-    });
-    const labels = Object.keys(counts).sort();
-    const cumulative = [];
-    let total = 0;
-    labels.forEach(day => {
-      total += counts[day];
-      cumulative.push(total);
-    });
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Stars over time (cumulative)',
-          data: cumulative,
-          borderColor: '#e63946',
-          backgroundColor: 'rgba(230,57,70,0.2)',
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { ticks: { color: '#5c3a3a' }, grid: { color: 'rgba(0,0,0,0.1)' } },
-          y: { ticks: { color: '#5c3a3a' }, grid: { color: 'rgba(0,0,0,0.1)' } }
-        },
-        plugins: { legend: { labels: { color: '#5c3a3a' } } }
-      }
-    });
-  }
-}
-
-/* ==================== HACK CLUB SECTION ==================== */
-async function renderHackClub(params) {
-  app.innerHTML = '<div class="loading">Loading Hack Club data...</div>';
-  try {
-    const cached = cacheGet('hackclub_repos');
-    let repos;
-    if (cached) repos = cached;
-    else {
-      repos = await getHackClubRepos();
-      cacheSet('hackclub_repos', repos);
-    }
-    const scrapbook = await getHackClubScrapbook().catch(() => null);
-    showHackClub(repos, scrapbook);
-  } catch (err) {
-    app.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-function showHackClub(repos, scrapbook) {
-  app.innerHTML = `
-    <h2>Hack Club</h2>
-    <p class="section-ref">Source: Hack Club GitHub org & Scrapbook API</p>
-    <p>Open‑source organization and community.</p>
-    ${scrapbook ? `<div class="notice">Scrapbook data available (${Array.isArray(scrapbook) ? scrapbook.length + ' entries' : 'non‑list'})</div>` : '<div class="notice">Scrapbook data unavailable.</div>'}
-    <h3>Repositories</h3>
-    <div class="card-grid"></div>
-  `;
-  const grid = app.querySelector('.card-grid');
-  repos.forEach(repo => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <div class="card-body">
-        <div class="card-title">${repo.full_name}</div>
-        <div class="card-description">${repo.description || ''}</div>
-        <div class="repo-stats">Stars ${repo.stars}  Forks ${repo.forks}  ${repo.language ? repo.language : ''}</div>
-      </div>
-    `;
-    card.addEventListener('click', () => {
-      location.hash = `#/github/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
-    });
-    grid.appendChild(card);
-  });
-  if (repos.length === 0) {
-    grid.innerHTML = '<p>No repos found.</p>';
-  }
-}
-
-/* ==================== VEHICLES SECTION ==================== */
-async function renderVehicles(params) {
-  if (params.length === 1 && params[0] !== '') {
-    const vehicleId = params[0];
-    app.innerHTML = '<div class="loading">Loading vehicle details...</div>';
-    try {
-      const cached = cacheGet(`vehicle_${vehicleId}`);
-      let vehicle;
-      if (cached) vehicle = cached;
-      else {
-        vehicle = await getVehicleDetails(vehicleId);
-        cacheSet(`vehicle_${vehicleId}`, vehicle);
-      }
-      showVehicleDetail(vehicle);
-    } catch (err) {
-      app.innerHTML = `<div class="error">${err.message}</div>`;
-    }
-    return;
-  }
-
-  app.innerHTML = `
-    <h2>Vehicles</h2>
-    <p class="section-ref">Source: Wikidata SPARQL (car & motorcycle models)</p>
-    <p>Search vehicles by partial name or alias. E.g., "civic", "tesla", "ninja".</p>
-    <div class="search-bar">
-      <input type="text" id="vehicle-search-input" placeholder="e.g., suzuki, honda, tesla" />
-      <button id="vehicle-search-btn">Search</button>
-    </div>
-    <div id="vehicle-results"></div>
-  `;
-  document.getElementById('vehicle-search-btn').addEventListener('click', searchVehicles);
-  document.getElementById('vehicle-search-input').addEventListener('keypress', e => {
-    if (e.key === 'Enter') searchVehicles();
-  });
-}
-
-async function searchVehicles() {
-  const input = document.getElementById('vehicle-search-input');
-  const query = input ? input.value.trim() : '';
-  const resultsContainer = document.getElementById('vehicle-results');
-  resultsContainer.innerHTML = '<div class="loading">Querying Wikidata...</div>';
-  try {
-    const cached = cacheGet(`vehicles_${query}`);
-    let vehicles;
-    if (cached) vehicles = cached;
-    else {
-      vehicles = await fetchVehicles(query);
-      cacheSet(`vehicles_${query}`, vehicles);
-    }
-    displayVehicleResults(vehicles, resultsContainer);
-  } catch (err) {
-    resultsContainer.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-function displayVehicleResults(vehicles, container) {
-  if (vehicles.length === 0) {
-    container.innerHTML = '<p>No vehicles found. Try a broader term.</p>';
-    return;
-  }
-  container.innerHTML = '<div class="card-grid"></div>';
-  const grid = container.querySelector('.card-grid');
-  vehicles.forEach(v => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      ${v.image ? `<img src="${v.image}" alt="${v.label}" loading="lazy">` : ''}
-      <div class="card-body">
-        <div class="card-title">${v.label}</div>
-        <div class="card-description">${v.description || ''}</div>
-      </div>
-    `;
-    card.addEventListener('click', () => {
-      location.hash = `#/vehicles/${encodeURIComponent(v.id)}`;
-    });
-    grid.appendChild(card);
-  });
-}
-
-function showVehicleDetail(vehicle) {
-  app.innerHTML = `
-    <button class="back-btn" onclick="history.back()">Back</button>
-    <div class="detail-panel">
-      <h2>${vehicle.label}</h2>
-      ${vehicle.image ? `<img src="${vehicle.image}" referrerpolicy="no-referrer">` : ''}
-      <p>${vehicle.description || ''}</p>
-      <h3>Specifications</h3>
-      <table>
-        <tbody>
-          ${vehicle.specs.map(spec => `<tr><td><strong>${spec.label}</strong></td><td>${spec.value}</td></tr>`).join('')}
-        </tbody>
-      </table>
-      <p><a href="${vehicle.url}" target="_blank" rel="noopener">View on Wikidata</a></p>
-    </div>
-  `;
-}
-
-/* ==================== STOCKS SECTION ==================== */
-function renderStocks(params) {
-  app.innerHTML = `
-    <h2>Stocks</h2>
-    <p class="section-ref">Source: Stooq / Yahoo Finance (via CORS proxy)</p>
-    <p>Enter a stock symbol (e.g., AAPL, TSLA, RELIANCE.NS).</p>
-    <div class="search-bar">
-      <input type="text" id="stock-search-input" placeholder="Enter symbol" />
-      <button id="stock-search-btn">Get Quote</button>
-    </div>
-    <div id="stock-results"></div>
-  `;
-  document.getElementById('stock-search-btn').addEventListener('click', searchStock);
-  document.getElementById('stock-search-input').addEventListener('keypress', e => {
-    if (e.key === 'Enter') searchStock();
-  });
-}
-
-async function searchStock() {
-  const symbol = document.getElementById('stock-search-input').value.trim().toUpperCase();
-  if (!symbol) return;
-  const resultsContainer = document.getElementById('stock-results');
-  resultsContainer.innerHTML = '<div class="loading">Fetching stock data...</div>';
-  try {
-    const cached = cacheGet(`stock_${symbol}`);
-    let data;
-    if (cached) data = cached;
-    else {
-      data = await getStockData(symbol);
-      cacheSet(`stock_${symbol}`, data);
-    }
-    displayStock(data, resultsContainer);
-  } catch (err) {
-    resultsContainer.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-function displayStock(data, container) {
-  container.innerHTML = `
-    <div class="detail-panel">
-      <h2>${data.symbol}</h2>
-      <p>Current Price: $${data.price.toFixed(2)}</p>
-      <p>Change: ${data.change.toFixed(2)} (${data.changePercent.toFixed(2)}%)</p>
-      <canvas id="stock-chart" style="width:100%;height:300px;"></canvas>
-    </div>
-  `;
-  const ctx = document.getElementById('stock-chart').getContext('2d');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: data.chart.labels,
-      datasets: [{
-        label: 'Price',
-        data: data.chart.data,
-        borderColor: '#e63946',
-        backgroundColor: 'rgba(230,57,70,0.2)',
-        fill: true
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { ticks: { color: '#5c3a3a' }, grid: { color: 'rgba(0,0,0,0.1)' } },
-        y: { ticks: { color: '#5c3a3a' }, grid: { color: 'rgba(0,0,0,0.1)' } }
-      },
-      plugins: { legend: { labels: { color: '#5c3a3a' } } }
-    }
-  });
-}
-
-/* ==================== AI ANALYSIS SECTION ==================== */
-function renderAnalysis() {
-  app.innerHTML = `
-    <h2>Analysis</h2>
-    <p class="section-ref">Local rule‑based analysis (no external AI API required)</p>
-    <p>Enter a stock symbol, GitHub repo (owner/repo), or any keyword for Wikipedia, Dev Boards, or Vehicles. Partial names work.</p>
-    <div class="search-bar">
-      <input type="text" id="analysis-input" placeholder="e.g., AAPL, microsoft/vscode, rasp, civic" />
-      <button id="analysis-btn">Analyze</button>
-    </div>
-    <div id="analysis-results"></div>
-  `;
-  document.getElementById('analysis-btn').addEventListener('click', runAnalysis);
-  document.getElementById('analysis-input').addEventListener('keypress', e => {
-    if (e.key === 'Enter') runAnalysis();
-  });
-}
-
-async function runAnalysis() {
-  const input = document.getElementById('analysis-input').value.trim();
-  if (!input) return;
-  const resultsContainer = document.getElementById('analysis-results');
-  resultsContainer.innerHTML = '<div class="loading">Running analysis...</div>';
-  try {
-    const result = await analyzeItem(input);
-    resultsContainer.innerHTML = `<div class="analysis-result">${result}</div>`;
-  } catch (err) {
-    resultsContainer.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-/* ==================== PROJECT FORGE SECTION ==================== */
-async function renderProjectForge() {
-  app.innerHTML = `
-    <h2>Project Forge</h2>
-    <p class="section-ref">Combines data from all sources</p>
-    <p>Generate brand‑new project ideas by mixing hardware, software, and trending topics.</p>
-    <button id="forge-btn" class="search-bar button">Generate Project Ideas</button>
-    <div id="forge-results"></div>
-  `;
-  document.getElementById('forge-btn').addEventListener('click', generateForge);
-  generateForge();
-}
-
-async function generateForge() {
-  const resultsContainer = document.getElementById('forge-results');
-  resultsContainer.innerHTML = '<div class="loading">Generating project ideas...</div>';
-  try {
-    const ideas = await generateProjectIdeas();
-    resultsContainer.innerHTML = ideas.map(idea => `
-      <div class="project-idea">
-        <h3>${idea.title}</h3>
-        <p>${idea.description}</p>
-        <p><strong>Components:</strong> ${idea.components.join(', ')}</p>
-      </div>
-    `).join('');
-  } catch (err) {
-    resultsContainer.innerHTML = `<div class="error">${err.message}</div>`;
-  }
-}
-
-/* ==================== SUPPORT SECTION ==================== */
-function renderSupport() {
-  app.innerHTML = `
-    <h2> Support</h2>
-    <p>Need help? Have questions or feedback? Reach out directly to the developer.</p>
-    <div class="detail-panel">
-      <p><strong>Email:</strong> <a href="mailto:omguptaogwhitehathacker@gmil.com" style="color:#e63946;">omguptaogwhitehathacker@gmil.com</a></p>
-      <p>We typically respond within 24–48 hours.</p>
-    </div>
-  `;
-}
-
-/* Generic detail panel for Wikipedia-based sections */
-function showDetailPanel(details) {
-  app.innerHTML = `
-    <button class="back-btn" onclick="history.back()">Back</button>
-    <div class="detail-panel">
-      <h2>${details.title}</h2>
-      ${details.image ? `<img src="${details.image}" referrerpolicy="no-referrer">` : ''}
-      <p>${details.extract || ''}</p>
-      <p><a href="${details.url}" target="_blank" rel="noopener">Read full article on Wikipedia</a></p>
-    </div>
-  `;
-}
-
-/* ==================== INIT ==================== */
-window.addEventListener('hashchange', router);
-router();
+document
+  .querySelectorAll("[data-route]")
+  .forEach((link) =>
+    link.addEventListener("click", () => setTimeout(render, 0)),
+  );
+document.querySelector("#menuButton").onclick = () =>
+  document.querySelector("#sideRail").classList.toggle("open");
+window.addEventListener("hashchange", render);
+render();

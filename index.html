@@ -1,35 +1,83 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Website God Mode</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <header class="topbar">
-      <h1 class="logo">God Mode</h1>
-    <nav class="main-nav">
-        <a href="#/" class="nav-link" data-section="home">God Search</a>
-        <a href="#/devboards" class="nav-link" data-section="devboards">Dev Boards</a>
-        <a href="#/github" class="nav-link" data-section="github">GitHub</a>
-        <a href="#/hackclub" class="nav-link" data-section="hackclub">Hack Club</a>
-        <a href="#/vehicles" class="nav-link" data-section="vehicles">Vehicles</a>
-        <a href="#/stocks" class="nav-link" data-section="stocks">Stocks</a>
-        <a href="#/analysis" class="nav-link" data-section="analysis">Analysis</a>
-        <a href="#/forge" class="nav-link" data-section="forge">Project Forge</a>
-        <a href="#/support" class="nav-link" data-section="support">Support</a>
-    </nav>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="God Mode — a personal command center for curious builders."
+    />
+    <title>God Mode — A personal command center</title>
+    <link rel="icon" href="favicon.svg" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="side-rail" id="sideRail">
+        <a class="wordmark" href="#home" data-route="home">
+          <span class="wordmark-main">God Mode</span>
+          <span class="wordmark-sub">A personal command center</span>
+        </a>
+        <div class="rail-rule"></div>
+        <p class="nav-kicker">Navigate</p>
+        <nav class="rail-nav" aria-label="Product areas">
+          <a class="rail-link active" href="#home" data-route="home"
+            ><span class="nav-icon">⌕</span>God Search</a
+          >
+          <a class="rail-link" href="#boards" data-route="boards"
+            ><span class="nav-icon">▦</span>Dev Boards</a
+          >
+          <a class="rail-link" href="#github" data-route="github"
+            ><span class="nav-icon">◌</span>GitHub</a
+          >
+          <a class="rail-link" href="#hackclub" data-route="hackclub"
+            ><span class="nav-icon">✦</span>Hack Club <small>new</small></a
+          >
+          <a class="rail-link" href="#vehicles" data-route="vehicles"
+            ><span class="nav-icon">▱</span>Vehicles</a
+          >
+          <a class="rail-link" href="#markets" data-route="markets"
+            ><span class="nav-icon">↗</span>Markets</a
+          >
+          <a class="rail-link" href="#forge" data-route="forge"
+            ><span class="nav-icon">✧</span>Project Forge</a
+          >
+        </nav>
+        <div class="rail-foot">
+          <strong>OM / 01</strong><br />Local-first workspace<br />No account
+          required
+        </div>
+      </aside>
 
-  <main id="app" class="app-container"></main>
-
-  <footer class="footer">
-    <p> copyright om gupta</p>
-  </footer>
-
-  <!-- Chart.js for graphs -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="script.js"></script>
-</body>
+      <div class="main-stage">
+        <header class="topline">
+          <button
+            class="mobile-menu"
+            id="menuButton"
+            aria-label="Open navigation"
+          >
+            ☰
+          </button>
+          <div class="breadcrumb">
+            Workspace&nbsp; / &nbsp;<strong id="pageLabel">God Search</strong>
+          </div>
+          <div class="top-actions">
+            <span class="status-dot">All systems quiet</span
+            ><a
+              href="#support"
+              class="help-button"
+              data-route="support"
+              aria-label="Open support"
+              >?</a
+            >
+          </div>
+        </header>
+        <main id="app"></main>
+        <footer class="footer-note">
+          Built for curiosity · local mock data · last sync 09:41
+        </footer>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
 </html>
