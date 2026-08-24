@@ -136,6 +136,8 @@ const labels = {
 };
 let savedIdea = false;
 let ideaNumber = 0;
+let syncTimer;
+let lastSync = null;
 
 function shell(title, body) {
   document.querySelector("#pageLabel").textContent = title;
@@ -150,16 +152,105 @@ function shell(title, body) {
       ),
     );
   document.querySelector("#sideRail").classList.remove("open");
+  clearInterval(syncTimer);
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, (character) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#39;",
+      '"': "&quot;",
+    };
+    return entities[character];
+  });
+}
+
+function wikipediaUrl(title) {
+  return `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
+}
+
+function wikipediaSearchUrl(query) {
+  return `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`;
+}
+
+function syncLabel() {
+  return lastSync
+    ? `LIVE · SYNCED ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+    : "LIVE · SYNCING";
+}
+
+function setSyncLabel() {
+  document.querySelectorAll("[data-sync-label]").forEach((element) => {
+    element.textContent = syncLabel();
+  });
 }
 
 function searchBar(label = "Search") {
-  return `<form class="search-strip" id="searchForm"><div class="search-input-wrap"><span>⌕</span><input class="search-input" id="searchInput" placeholder="Try a topic, a repo, a board…" aria-label="Search"></div><button class="search-submit">${label}</button></form>`;
+  return `<form class="search-strip" id="searchForm"><div class="search-input-wrap"><span>⌕</span><input class="search-input" id="searchInput" placeholder="Try a topic, a repo, a board…" aria-label="Search" required></div><button class="search-submit">${label}</button></form>`;
+}
+
+function renderSearchResults(results, query) {
+  const resultsElement = document.querySelector("#results");
+  if (!resultsElement) return;
+  resultsElement.innerHTML = results.length
+    ? results
+        .map(
+          (result, index) =>
+            `<a class="result-card reveal" href="${escapeHtml(result.url)}" target="_blank" rel="noopener noreferrer"><div class="result-top"><span>Wikipedia</span><span>0${index + 1}</span></div><h3>${escapeHtml(result.title)}</h3><p>${escapeHtml(result.description || "Open this article on Wikipedia to explore the topic.")}</p><div class="result-foot"><span>WIKIPEDIA ARTICLE</span><span>↗</span></div></a>`,
+        )
+        .join("")
+    : `<div class="state-box"><h3>Nothing found for “${escapeHtml(query)}”.</h3><p>Try a broader phrase, or <a href="${wikipediaSearchUrl(query)}" target="_blank" rel="noopener noreferrer">search Wikipedia directly</a>.</p></div>`;
+}
+
+function renderCollectionResults(results, query, type) {
+  const collectionElement = document.querySelector("#collection");
+  if (!collectionElement) return;
+  collectionElement.innerHTML = results.length
+    ? results
+        .map(
+          (result, index) =>
+            `<a class="board-card reveal" href="${escapeHtml(result.url)}" target="_blank" rel="noopener noreferrer"><div class="board-mark">${String(index + 1).padStart(2, "0")}</div><div><h3>${escapeHtml(result.title)}</h3><p>${escapeHtml(result.description || `Open this ${type === "boards" ? "board" : "vehicle"} article on Wikipedia.`)}</p><span class="tag">WIKIPEDIA ARTICLE ↗</span></div></a>`,
+        )
+        .join("")
+    : `<div class="state-box"><h3>Nothing found for “${escapeHtml(query)}”.</h3><p><a href="${wikipediaSearchUrl(query)}" target="_blank" rel="noopener noreferrer">Search Wikipedia directly</a> for more results.</p></div>`;
+}
+
+async function searchWikipedia(query) {
+  const endpoint = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=9&format=json&origin=*`;
+  const response = await fetch(endpoint);
+  if (!response.ok) throw new Error("Wikipedia search failed");
+  const payload = await response.json();
+  return (payload.query?.search || []).map((result) => ({
+    title: result.title,
+    description: result.snippet.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"'),
+    url: wikipediaUrl(result.title),
+  }));
+}
+
+async function searchBoards(query) {
+  const results = await searchWikipedia(`${query} development board microcontroller`);
+  const boardTerms = /board|arduino|esp32|esp8266|raspberry pi|pico|stm32|microcontroller|beaglebone|teensy|feather/i;
+  return results.filter((result) => boardTerms.test(`${result.title} ${result.description}`));
+}
+
+function startLiveSync(refresh) {
+  clearInterval(syncTimer);
+  const sync = async () => {
+    await refresh();
+    lastSync = new Date();
+    setSyncLabel();
+  };
+  sync();
+  syncTimer = setInterval(sync, 60000);
 }
 
 function home() {
   shell(
     "God Search",
-    `<section class="home-hero" style="background-image:url('${artwork}')"><div class="hero-copy"><div class="eyebrow">A quiet instrument for loud ideas</div><h1>Follow the<br><em>interesting</em> thing.</h1><p class="lede">God Mode is a personal command center for curious builders. Search the web’s knowledge, browse code, study machines, and leave with a project worth making.</p><button class="button-primary" id="beginSearch">Open the search desk <span>→</span></button></div><div class="hero-index"><strong>FIELD NOTE / 001</strong>Make the first move small enough to make now. The rest of the map appears after.</div></section><section id="searchDesk"><div class="page-heading"><div><div class="eyebrow">God Search</div><h2>One desk.<br>Several rabbit holes.</h2></div><p class="heading-meta">A forgiving search across local starting points. No accounts, no ceremony, no need to know exactly what you are looking for.</p></div>${searchBar()}<div id="results" class="result-grid"></div></section>`,
+    `<section class="home-hero" style="background-image:url('${artwork}')"><div class="hero-copy"><div class="eyebrow">A quiet instrument for loud ideas</div><h1>Follow the<br><em>interesting</em> thing.</h1><p class="lede">God Mode is a personal command center for curious builders. Search the web’s knowledge, browse code, study machines, and leave with a project worth making.</p><button class="button-primary" id="beginSearch">Open the search desk <span>→</span></button></div><div class="hero-index"><strong>FIELD NOTE / 001</strong>Make the first move small enough to make now. The rest of the map appears after.</div></section><section id="searchDesk"><div class="page-heading"><div><div class="eyebrow">God Search</div><h2>One desk.<br>Several rabbit holes.</h2></div><p class="heading-meta">A live search across the web’s knowledge. No accounts, no ceremony, no need to know exactly what you are looking for.</p></div>${searchBar()}<div class="sync-line" data-sync-label>${syncLabel()}</div><div id="results" class="result-grid"></div></section>`,
   );
   document.querySelector("#results").innerHTML =
     '<div class="state-box"><h3>Start with a loose thread.</h3><p>Search across knowledge, hardware, code, and the occasional beautiful machine.</p></div>';
@@ -171,22 +262,22 @@ function home() {
   };
   document.querySelector("#searchForm").onsubmit = (event) => {
     event.preventDefault();
-    const query = document
-      .querySelector("#searchInput")
-      .value.toLowerCase()
-      .trim();
-    const found = data.search.filter((item) =>
-      item.join(" ").toLowerCase().includes(query),
-    );
-    document.querySelector("#results").innerHTML = found.length
-      ? found
-          .map(
-            (item, i) =>
-              `<article class="result-card reveal"><div class="result-top"><span>${item[0]}</span><span>0${i + 1}</span></div><h3>${item[1]}</h3><p>${item[2]}</p><div class="result-foot"><span>${item[3]}</span><span>↗</span></div></article>`,
-          )
-          .join("")
-      : '<div class="state-box"><h3>Nothing in the index yet.</h3><p>Try a broader phrase. The best rabbit holes rarely start with the perfect query.</p></div>';
+    const query = document.querySelector("#searchInput").value.trim();
+    const resultsElement = document.querySelector("#results");
+    resultsElement.innerHTML = '<div class="state-box"><h3>Searching Wikipedia…</h3><p>Looking beyond the local shelf.</p></div>';
+    searchWikipedia(query)
+      .then((results) => renderSearchResults(results, query))
+      .catch(() => {
+        resultsElement.innerHTML = `<div class="state-box"><h3>The live index is unavailable.</h3><p><a href="${wikipediaSearchUrl(query)}" target="_blank" rel="noopener noreferrer">Search Wikipedia directly</a> for “${escapeHtml(query)}”.</p></div>`;
+      });
   };
+  startLiveSync(async () => {
+    const query = document.querySelector("#searchInput")?.value.trim();
+    if (query) {
+      const results = await searchWikipedia(query);
+      renderSearchResults(results, query);
+    }
+  });
 }
 
 function collection(type) {
@@ -196,19 +287,26 @@ function collection(type) {
   const kicker = isBoard ? "Hardware index" : "Machine index";
   shell(
     isBoard ? "Dev Boards" : "Vehicles",
-    `<div class="page-heading"><div><div class="eyebrow">${kicker}</div><h2>${isBoard ? "Dev<br>boards." : "Beautiful<br>machines."}</h2></div><p class="heading-meta">${isBoard ? "A practical shelf of boards worth keeping within reach. Each one is a different kind of invitation." : "A small collection of vehicles with good proportions, odd solutions, or stories that got under the skin."}</p></div>${searchBar("Filter")}<div id="collection" class="board-grid">${items.map((item) => `<a class="board-card" href="#${type}/${item[0].toLowerCase()}" data-item="${item.join(" ").toLowerCase()}"><div class="board-mark">${item[0]}</div><div><h3>${item[1]}</h3><p>${item[2]}</p><span class="tag">${item[3]}</span></div></a>`).join("")}</div>`,
+    `<div class="page-heading"><div><div class="eyebrow">${kicker}</div><h2>${isBoard ? "Dev<br>boards." : "Beautiful<br>machines."}</h2></div><p class="heading-meta">${isBoard ? "Search real development boards by family, chip, or manufacturer." : "Search vehicles by make, model, or era. Open any result to read its live Wikipedia article."}</p></div>${searchBar(isBoard ? "Search boards" : "Search vehicles")}<div class="sync-line" data-sync-label>${syncLabel()}</div><div id="collection" class="board-grid">${items.map((item) => `<a class="board-card" href="${wikipediaSearchUrl(item[1])}" target="_blank" rel="noopener noreferrer" data-item="${escapeHtml(item.join(" ").toLowerCase())}"><div class="board-mark">${escapeHtml(item[0])}</div><div><h3>${escapeHtml(item[1])}</h3><p>${escapeHtml(item[2])}</p><span class="tag">${escapeHtml(item[3])}</span></div></a>`).join("")}</div>`,
   );
+  startLiveSync(async () => {
+    if (document.querySelector("#collection")?.dataset.searching === "true") return;
+    const results = isBoard ? await searchBoards("development boards") : await searchWikipedia("vehicles automobiles");
+    if (results.length) renderCollectionResults(results, isBoard ? "development boards" : "vehicles", type);
+  });
   document.querySelector("#searchForm").onsubmit = (e) => {
     e.preventDefault();
-    const query = document.querySelector("#searchInput").value.toLowerCase();
-    document
-      .querySelectorAll("[data-item]")
-      .forEach(
-        (item) =>
-          (item.style.display = item.dataset.item.includes(query)
-            ? ""
-            : "none"),
-      );
+    const query = document.querySelector("#searchInput").value.trim();
+    const collectionElement = document.querySelector("#collection");
+    collectionElement.dataset.searching = "true";
+    collectionElement.innerHTML = '<div class="state-box"><h3>Searching Wikipedia…</h3><p>Looking beyond the local shelf.</p></div>';
+    const search = isBoard ? searchBoards(query) : searchWikipedia(`${query} vehicle`);
+    search
+      .then((results) => renderCollectionResults(results, query, type))
+      .catch(() => {
+        collectionElement.innerHTML = `<div class="state-box"><h3>The live index is unavailable.</h3><p><a href="${wikipediaSearchUrl(query)}" target="_blank" rel="noopener noreferrer">Search Wikipedia directly</a> for “${escapeHtml(query)}”.</p></div>`;
+      })
+      .finally(() => { collectionElement.dataset.searching = "false"; });
   };
 }
 
